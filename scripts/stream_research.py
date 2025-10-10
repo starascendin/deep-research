@@ -15,7 +15,13 @@ def fetch_openapi(base_url: str) -> Dict[str, Any]:
     return r.json()
 
 
-def find_path(openapi: Dict[str, Any], *, contains: Tuple[str, ...], method: Optional[str] = None) -> Tuple[str, str]:
+def find_path(
+    openapi: Dict[str, Any],
+    *,
+    contains: Tuple[str, ...],
+    method: Optional[str] = None,
+    exclude: Tuple[str, ...] = ("legacy",),
+) -> Tuple[str, str]:
     paths = openapi.get("paths", {})
     candidates = []
     for path, methods in paths.items():
@@ -23,7 +29,7 @@ def find_path(openapi: Dict[str, Any], *, contains: Tuple[str, ...], method: Opt
             if method and mtd.lower() != method.lower():
                 continue
             p = path.lower()
-            if all(c in p for c in contains):
+            if all(c in p for c in contains) and not any(ex in p for ex in exclude):
                 candidates.append((path, mtd.upper(), op))
     if not candidates:
         # Try operationId search if available
@@ -32,7 +38,7 @@ def find_path(openapi: Dict[str, Any], *, contains: Tuple[str, ...], method: Opt
                 if method and mtd.lower() != method.lower():
                     continue
                 opid = (op.get("operationId") or "").lower()
-                if all(c in opid for c in contains):
+                if all(c in opid for c in contains) and not any(ex in (opid or path).lower() for ex in exclude):
                     return path, mtd.upper()
         raise RuntimeError(f"Could not find endpoint containing {contains} with method={method}")
     # Prefer longer/more specific matches
@@ -50,10 +56,11 @@ def substitute_path_params(path: str, **params) -> str:
 def create_run(base_url: str, openapi: Dict[str, Any], workflow_id: str) -> str:
     # Look for POST create-run or runs
     try:
-        path, method = find_path(openapi, contains=("workflows", "create", "run"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "create", "run"), method="post", exclude=("legacy",))
     except Exception:
-        path, method = find_path(openapi, contains=("workflows", "runs"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "runs"), method="post", exclude=("legacy",))
     url_path = substitute_path_params(path, workflowId=workflow_id)
+    print(f"[create-run] {method} {url_path}")
     url = base_url.rstrip("/") + url_path
     resp = requests.post(url, json={}, timeout=30)
     resp.raise_for_status()
@@ -67,11 +74,12 @@ def create_run(base_url: str, openapi: Dict[str, Any], workflow_id: str) -> str:
 def start_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: str, run_id: str, input_data: Dict[str, Any]):
     # Kick off the vNext stream (server caches chunks for observe)
     try:
-        path, method = find_path(openapi, contains=("workflows", "stream", "vnext"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "stream", "vnext"), method="post", exclude=("legacy",))
     except Exception:
         # Fallback: start async run (no chunk cache for observe-stream-vnext)
-        path, method = find_path(openapi, contains=("workflows", "start"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "start"), method="post", exclude=("legacy",))
     url_path = substitute_path_params(path, workflowId=workflow_id, runId=run_id)
+    print(f"[stream-vnext] {method} {url_path}")
     url = base_url.rstrip("/") + url_path
     payload = {"inputData": input_data}
     # Some servers accept closeOnSuspend
@@ -87,11 +95,12 @@ def start_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: str,
 def observe_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: str, run_id: str):
     # Try observe vNext stream first
     try:
-        path, method = find_path(openapi, contains=("workflows", "observe", "stream", "vnext"))
+        path, method = find_path(openapi, contains=("workflows", "observe", "stream", "vnext"), exclude=("legacy",))
     except Exception:
         # Fallback to generic watch
-        path, method = find_path(openapi, contains=("workflows", "watch"))
+        path, method = find_path(openapi, contains=("workflows", "watch"), exclude=("legacy",))
     url_path = substitute_path_params(path, workflowId=workflow_id, runId=run_id)
+    print(f"[observe] {method} {url_path}")
     url = base_url.rstrip("/") + url_path
     with requests.request(method, url, stream=True) as r:
         r.raise_for_status()
@@ -111,11 +120,12 @@ def observe_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: st
 
 def resume_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: str, run_id: str, step: str, resume_data: Dict[str, Any]) -> bool:
     try:
-        path, method = find_path(openapi, contains=("workflows", "resume", "stream", "vnext"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "resume", "stream", "vnext"), method="post", exclude=("legacy",))
     except Exception:
         # Fallback to generic resume
-        path, method = find_path(openapi, contains=("workflows", "resume"), method="post")
+        path, method = find_path(openapi, contains=("workflows", "resume"), method="post", exclude=("legacy",))
     url_path = substitute_path_params(path, workflowId=workflow_id, runId=run_id)
+    print(f"[resume] {method} {url_path} step={step}")
     url = base_url.rstrip("/") + url_path
     payload = {"step": step, "resumeData": resume_data}
     resp = requests.post(url, json=payload, stream=False)
@@ -124,10 +134,44 @@ def resume_stream_vnext(base_url: str, openapi: Dict[str, Any], workflow_id: str
     return False
 
 
+def resolve_workflow_id(base_url: str, desired: str) -> str:
+    """Resolve a human/variant workflow name to the actual server key.
+
+    - Exact key match wins.
+    - Match by .name field.
+    - Fuzzy: compare normalized strings (lowercase alnum only).
+    """
+    def norm(s: str) -> str:
+        return "".join(ch for ch in s.lower() if ch.isalnum())
+
+    url = base_url.rstrip("/") + "/api/workflows"
+    r = requests.get(url, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+
+    if desired in data:
+        return desired
+
+    desired_norm = norm(desired)
+    # Check names and normalized
+    for key, meta in data.items():
+        name = (meta.get("name") or "")
+        if name == desired:
+            return key
+        if norm(key) == desired_norm or norm(name) == desired_norm:
+            return key
+
+    # As a last resort, if a single workflow exists, use it
+    if len(data) == 1:
+        return next(iter(data.keys()))
+
+    raise RuntimeError(f"Could not resolve workflow id for '{desired}'. Available: {list(data.keys())}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Stream research workflow results from Mastra server using OpenAPI.")
     parser.add_argument("--server", default="http://localhost:4111", help="Mastra server base URL (default: http://localhost:4111)")
-    parser.add_argument("--workflow-id", default="research-workflow", help="Workflow ID to run (default: research-workflow)")
+    parser.add_argument("--workflow-id", default="researchWorkflow", help="Workflow ID or name (default: researchWorkflow)")
     parser.add_argument("--query", default=None, help="Research query (e.g., 'give me the news on nvda')")
     parser.add_argument("--auto-approve", action="store_true", help="Auto-approve at approval step")
     args = parser.parse_args()
@@ -144,7 +188,12 @@ def main():
         print(f"Failed to fetch OpenAPI from {base}/openapi.json: {e}")
         sys.exit(1)
 
-    workflow_id = args.workflow_id
+    # Resolve workflow id against server
+    try:
+        workflow_id = resolve_workflow_id(base, args.workflow_id)
+    except Exception as e:
+        print(f"Failed to resolve workflow id '{args.workflow_id}': {e}")
+        sys.exit(1)
     print(f"Using workflow: {workflow_id}")
 
     # 1) Create run
@@ -191,4 +240,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
