@@ -1,5 +1,8 @@
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
+import { webSearchTool } from '../tools/webSearchTool';
+import { evaluateResultTool } from '../tools/evaluateResultTool';
+import { extractLearningsTool } from '../tools/extractLearningsTool';
 
 // Step 1: Get user query
 const getUserQueryStep = createStep({
@@ -56,7 +59,14 @@ const researchStep = createStep({
       Phase 1: Search for 2-3 initial queries about this topic
       Phase 2: Search for follow-up questions from the learnings (then STOP)
 
-      Return findings in JSON format with queries, searchResults, learnings, completedQueries, and phase.`;
+      At the end, OUTPUT ONLY a JSON object with the following keys (no prose):
+      {
+        "queries": string[],
+        "searchResults": Array<{ "title"?: string; "url"?: string; "content"?: string; "relevance"?: string | boolean; "isRelevant"?: boolean; "reason"?: string }>,
+        "learnings": Array<{ "learning"?: string; "followUpQuestions"?: string[]; "source"?: string }>,
+        "completedQueries": string[],
+        "phase"?: "initial" | "follow-up"
+      }`;
 
       const result = await agent.generate(
         [
@@ -66,34 +76,100 @@ const researchStep = createStep({
           },
         ],
         {
-          maxSteps: 15,
+          maxSteps: 40,
+          // Lenient schema to reduce parse failures and avoid undefined object
           experimental_output: z.object({
-            queries: z.array(z.string()),
-            searchResults: z.array(
-              z.object({
-                title: z.string(),
-                url: z.string(),
-                relevance: z.string(),
-              }),
-            ),
-            learnings: z.array(
-              z.object({
-                learning: z.string(),
-                followUpQuestions: z.array(z.string()),
-                source: z.string(),
-              }),
-            ),
-            completedQueries: z.array(z.string()),
+            queries: z.array(z.string()).default([]),
+            searchResults: z
+              .array(
+                z
+                  .object({
+                    title: z.string().optional(),
+                    url: z.string().optional(),
+                    content: z.string().optional(),
+                    relevance: z.union([z.string(), z.boolean()]).optional(),
+                    isRelevant: z.boolean().optional(),
+                    reason: z.string().optional(),
+                  })
+                  .catchall(z.any()),
+              )
+              .default([]),
+            learnings: z
+              .array(
+                z.object({
+                  learning: z.string().optional(),
+                  followUpQuestions: z.array(z.string()).default([]).optional(),
+                  source: z.string().optional(),
+                }),
+              )
+              .default([]),
+            completedQueries: z.array(z.string()).default([]),
             phase: z.string().optional(),
           }),
         },
       );
 
-      // Create a summary
-      const summary = `Research completed on "${query}:" \n\n ${JSON.stringify(result.object, null, 2)}\n\n`;
+      // Prefer structured object; fallback to parsed text or plain text
+      let structured: any = (result as any).object;
+      if (!structured && (result as any).text) {
+        try {
+          structured = JSON.parse((result as any).text);
+        } catch {
+          // ignore non-JSON
+        }
+      }
+
+      const pretty = structured
+        ? JSON.stringify(structured, null, 2)
+        : (result as any).text || 'No structured research data returned.';
+
+      // Create a summary without accidental 'undefined'
+      const summary = `Research completed on "${query}"\n\n${pretty}\n`;
+
+      // Fallback path: if no structured data, synthesize from tools directly
+      if (!structured || (!structured.searchResults && !structured.learnings)) {
+        try {
+          const search = await (webSearchTool as any).execute({ context: { query }, mastra });
+          const results = (search?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+
+          const enriched = [] as Array<{ title?: string; url?: string; content?: string; isRelevant?: boolean; reason?: string }>;
+          const learnings = [] as Array<{ learning?: string; followUpQuestions?: string[]; source?: string }>;
+
+          for (const r of results) {
+            try {
+              const evalRes = await (evaluateResultTool as any).execute({ context: { query, result: r }, mastra });
+              enriched.push({ ...r, isRelevant: !!evalRes?.isRelevant, reason: evalRes?.reason });
+              if (evalRes?.isRelevant) {
+                const ext = await (extractLearningsTool as any).execute({ context: { query, result: r }, mastra });
+                learnings.push({ ...(ext || {}), source: r.url });
+              }
+            } catch {
+              enriched.push({ ...r });
+            }
+          }
+
+          structured = {
+            queries: [query],
+            searchResults: enriched,
+            learnings,
+            completedQueries: [query],
+            phase: 'initial',
+          } as any;
+
+          const prettySynth = JSON.stringify(structured, null, 2);
+          const summarySynth = `Research completed on "${query}"\n\n${prettySynth}\n`;
+
+          return {
+            researchData: structured,
+            summary: summarySynth,
+          };
+        } catch {
+          // fall through to return earlier summary
+        }
+      }
 
       return {
-        researchData: result.object,
+        researchData: structured ?? { rawText: (result as any).text },
         summary,
       };
     } catch (error: any) {

@@ -4,11 +4,11 @@ import { evaluateResultTool } from '../tools/evaluateResultTool';
 import { extractLearningsTool } from '../tools/extractLearningsTool';
 import { webSearchTool } from '../tools/webSearchTool';
 
-const mainModel = openai('gpt-4o');
+const mainModel = openai('gpt-4.1');
 
 export const researchAgent = new Agent({
   name: 'Research Agent',
-  instructions: `You are an expert research agent. Your goal is to research topics thoroughly by following this EXACT process:
+  instructions: `You are an expert research agent. Your goal is to research topics thoroughly by following this EXACT process. IMPORTANT: After finishing tool use, you MUST produce a final assistant message that contains ONLY a JSON object matching the required output structure (no prose, no markdown, no code fences). Do not call any tools after you are ready to output the final JSON.
 
   **PHASE 1: Initial Research**
   1. Break down the main topic into 2 specific, focused search queries
@@ -29,12 +29,17 @@ export const researchAgent = new Agent({
   - Do NOT create infinite loops by searching follow-up questions from follow-up results
 
   **Output Structure:**
-  Return findings in JSON format with:
-  - queries: Array of all search queries used (initial + follow-up)
-  - searchResults: Array of relevant search results found
-  - learnings: Array of key learnings extracted from results
-  - completedQueries: Array tracking what has been searched
-  - phase: Current phase of research ("initial" or "follow-up")
+  Return findings as a single JSON object with EXACTLY these keys:
+  - queries: string[] (all search queries used: initial + follow-up)
+  - searchResults: { title?: string; url?: string; content?: string; relevance?: string | boolean; isRelevant?: boolean; reason?: string }[]
+  - learnings: { learning?: string; followUpQuestions?: string[]; source?: string }[]
+  - completedQueries: string[]
+  - phase?: "initial" | "follow-up"
+
+  STRICT FORMAT RULES:
+  - Output ONLY a JSON object matching the above structure.
+  - No extra text, no backticks, no explanations.
+  - Ensure arrays are present (use [] if empty).
 
   **Error Handling:**
   - If all searches fail, use your knowledge to provide basic information

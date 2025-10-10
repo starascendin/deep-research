@@ -13,20 +13,11 @@ export const evaluateResultTool = createTool({
         content: z.string(),
       })
       .describe('The search result to evaluate'),
-    existingUrls: z.array(z.string()).describe('URLs that have already been processed').optional(),
   }),
   execute: async ({ context, mastra }) => {
     try {
-      const { query, result, existingUrls = [] } = context;
+      const { query, result } = context;
       console.log('Evaluating result', { context });
-
-      // Check if URL already exists (only if existingUrls was provided)
-      if (existingUrls && existingUrls.includes(result.url)) {
-        return {
-          isRelevant: false,
-          reason: 'URL already processed',
-        };
-      }
 
       const evaluationAgent = mastra!.getAgent('evaluationAgent');
 
