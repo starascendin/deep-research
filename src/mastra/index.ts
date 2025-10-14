@@ -1,6 +1,5 @@
 import { Mastra } from '@mastra/core';
 import { LibSQLStore } from '@mastra/libsql';
-import { MastraJwtAuth } from '@mastra/auth';
 import { researchWorkflow } from './workflows/researchWorkflow';
 import { learningExtractionAgent } from './agents/learningExtractionAgent';
 import { evaluationAgent } from './agents/evaluationAgent';
@@ -27,8 +26,35 @@ export const mastra = new Mastra({
     },
   },
   server: {
-    experimental_auth: new MastraJwtAuth({
-      secret: process.env.MASTRA_JWT_SECRET!,
-    }),
+    // Protect Mastra API routes with a simple API key middleware
+    // - Expects `MASTRA_API_KEY` (or `API_KEY`) in environment
+    // - Checks `x-api-key` header on `/api/*` routes
+    middleware: [
+      {
+        path: '/api/*',
+        handler: async (c, next) => {
+          const isDev = process.env.NODE_ENV !== 'production' || process.env.MASTRA_DEV === 'true';
+          const forceEnforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
+          const enforce = forceEnforce || !isDev;
+
+          if (!enforce) {
+            // In local dev, skip API key enforcement for convenience
+            return next();
+          }
+
+          const configuredKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
+          if (!configuredKey) {
+            return new Response('Server misconfigured: missing MASTRA_API_KEY', { status: 500 });
+          }
+
+          const providedKey = c.req.header('x-api-key');
+          if (!providedKey || providedKey !== configuredKey) {
+            return new Response('Unauthorized', { status: 401 });
+          }
+
+          await next();
+        },
+      },
+    ],
   },
 });

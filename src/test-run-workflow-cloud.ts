@@ -1,5 +1,4 @@
 import { MastraClient } from "@mastra/client-js";
-import jwt from 'jsonwebtoken';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -50,34 +49,22 @@ async function main() {
   const initialQuery = query?.trim() || "OpenAI o3 model announcement and capabilities";
   const autoApprove = deny ? false : approve !== false; // default approve unless --deny
 
-  // Check for JWT secret
-  const jwtSecret = process.env.MASTRA_JWT_SECRET;
-  if (!jwtSecret) {
-    console.error("❌ Error: MASTRA_JWT_SECRET not found in .env file");
+  // Read API key for simple header-based auth
+  const apiKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
+  if (!apiKey) {
+    console.error("❌ Error: MASTRA_API_KEY (or API_KEY) not found in .env file");
     process.exit(1);
   }
 
-  // Generate JWT token dynamically
-  const jwtToken = jwt.sign(
-    {
-      sub: 'test-user',
-      iat: Math.floor(Date.now() / 1000),
-    },
-    jwtSecret,
-    {
-      algorithm: 'HS256',
-    }
-  );
-
-  // Initialize the Mastra client pointing to the cloud deployment with JWT auth
+  // Initialize the Mastra client pointing to the cloud deployment with API key auth
   const mastraClient = new MastraClient({
     baseUrl: "https://hundreds-tinkling-teacher.mastra.cloud",
     headers: {
-      Authorization: `Bearer ${jwtToken}`,
+      'x-api-key': apiKey,
     },
   });
 
-  console.log("🔐 Connecting to cloud deployment with JWT authentication");
+  console.log("🔐 Connecting to cloud deployment with API key authentication");
   console.log("🌐 URL: https://hundreds-tinkling-teacher.mastra.cloud\n");
 
   const workflow = mastraClient.getWorkflow("researchWorkflow");
