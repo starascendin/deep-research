@@ -7,7 +7,10 @@ import { extractLearningsTool } from '../tools/extractLearningsTool';
 // Step 1: Get user query
 const getUserQueryStep = createStep({
   id: 'get-user-query',
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    // When provided at workflow start, this will bypass suspend
+    query: z.string().describe('The query to research'),
+  }),
   outputSchema: z.object({
     query: z.string(),
   }),
@@ -19,12 +22,12 @@ const getUserQueryStep = createStep({
       query: z.string(),
     }),
   }),
-  execute: async ({ resumeData, suspend }) => {
-    if (resumeData) {
-      return {
-        ...resumeData,
-        query: resumeData.query || '',
-      };
+  execute: async ({ inputData, resumeData, suspend }) => {
+    // Prefer resumeData (explicit user response), otherwise use start input
+    const query = resumeData?.query ?? inputData?.query;
+
+    if (query && query.trim().length > 0) {
+      return { query };
     }
 
     await suspend({
@@ -33,9 +36,7 @@ const getUserQueryStep = createStep({
       },
     });
 
-    return {
-      query: '',
-    };
+    return { query: '' };
   },
 });
 
@@ -219,7 +220,9 @@ const approvalStep = createStep({
 // Define the workflow
 export const researchWorkflow = createWorkflow({
   id: 'research-workflow',
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    query: z.string(),
+  }),
   outputSchema: z.object({
     approved: z.boolean(),
     researchData: z.any(),
