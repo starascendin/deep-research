@@ -1,5 +1,6 @@
 import { Mastra } from '@mastra/core';
 import { LibSQLStore } from '@mastra/libsql';
+import { MastraJwtAuth } from '@mastra/auth';
 import { researchWorkflow } from './workflows/researchWorkflow';
 import { learningExtractionAgent } from './agents/learningExtractionAgent';
 import { evaluationAgent } from './agents/evaluationAgent';
@@ -24,5 +25,10 @@ export const mastra = new Mastra({
     default: {
       enabled: true,
     },
+  },
+  server: {
+    experimental_auth: new MastraJwtAuth({
+      secret: process.env.MASTRA_JWT_SECRET!,
+    }),
   },
 });
