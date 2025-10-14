@@ -97,16 +97,13 @@ const researchDirectStep = createStep({
           const results = (search?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
 
           const enriched = [] as Array<{ title?: string; url?: string; content?: string; isRelevant?: boolean; reason?: string }>;
-          const learnings = [] as Array<{ learning?: string; followUpQuestions?: string[]; source?: string }>;
+          const learnings: Array<{ learning?: string; followUpQuestions?: string[]; source?: string }> = [];
 
           for (const r of results) {
             try {
               const evalRes = await (evaluateResultTool as any).execute({ context: { query, result: r }, mastra });
               enriched.push({ ...r, isRelevant: !!evalRes?.isRelevant, reason: evalRes?.reason });
-              if (evalRes?.isRelevant) {
-                const ext = await (extractLearningsTool as any).execute({ context: { query, result: r }, mastra });
-                learnings.push({ ...(ext || {}), source: r.url });
-              }
+              // Intentionally skip learning extraction in direct fallback to simplify flow
             } catch {
               enriched.push({ ...r });
             }
