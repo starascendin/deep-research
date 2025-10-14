@@ -33,9 +33,9 @@ export const mastra = new Mastra({
       {
         path: '/api/*',
         handler: async (c, next) => {
-          const isDev = process.env.NODE_ENV !== 'production' || process.env.MASTRA_DEV === 'true';
+          const configuredKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
           const forceEnforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
-          const enforce = forceEnforce || !isDev;
+          const enforce = forceEnforce || Boolean(configuredKey);
 
           // Allow readiness path to bypass auth (prevents 401 on probes)
           const url = new URL(c.req.url);
@@ -50,11 +50,10 @@ export const mastra = new Mastra({
           const isReadiness = readinessVariants.has(path);
 
           if (!enforce || isReadiness) {
-            // In local dev or readiness probe, skip API key enforcement
+            // No key configured (dev) or readiness probe: skip enforcement
             return next();
           }
 
-          const configuredKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
           if (!configuredKey) {
             return new Response('Server misconfigured: missing MASTRA_API_KEY', { status: 500 });
           }

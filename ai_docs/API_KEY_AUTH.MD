@@ -40,5 +40,4 @@ const client = new MastraClient({
 
 Notes
 - Protects only `/api/*` routes; the readiness path remains public (defaults to `/api`, configurable via `READINESS_CHECK_PATH`).
-- Configure the key via `MASTRA_API_KEY` (or `API_KEY`). See `.env.example`.
-- Local dev: when `NODE_ENV` is not `production`, the middleware is disabled. To force auth in dev, set `MASTRA_ENFORCE_API_KEY=true`.
+- Enforcement logic: if `MASTRA_API_KEY` (or `API_KEY`) is configured, API key is enforced. If no key is configured, routes are open (good for local dev). You can force enforcement in any case with `MASTRA_ENFORCE_API_KEY=true`.
