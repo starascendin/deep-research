@@ -37,8 +37,20 @@ export const mastra = new Mastra({
           const forceEnforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
           const enforce = forceEnforce || !isDev;
 
-          if (!enforce) {
-            // In local dev, skip API key enforcement for convenience
+          // Allow readiness path to bypass auth (prevents 401 on probes)
+          const url = new URL(c.req.url);
+          const path = (c.req as any).path ?? url.pathname;
+          const readinessPath = process.env.READINESS_CHECK_PATH || '/api';
+          const readinessVariants = new Set<string>([
+            readinessPath,
+            readinessPath.endsWith('/') ? readinessPath.slice(0, -1) : `${readinessPath}/`,
+            '/api',
+            '/api/',
+          ]);
+          const isReadiness = readinessVariants.has(path);
+
+          if (!enforce || isReadiness) {
+            // In local dev or readiness probe, skip API key enforcement
             return next();
           }
 
