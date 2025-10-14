@@ -70,27 +70,66 @@ async function main() {
   const workflow = mastraClient.getWorkflow("researchWorkflow");
   const run = await workflow.createRunAsync();
 
+  // Watcher to auto-approve on suspend and resolve on completion
+  const waitForFinal = () => new Promise<any>((resolve) => {
+    let resolved = false;
+    try {
+      (run as any).watch?.(async (record: any) => {
+        const status = record?.payload?.workflowState?.status || record?.status;
+        const normalized = typeof status === 'string' ? status.toUpperCase() : undefined;
+
+        if (normalized === 'SUSPENDED' && autoApprove !== undefined) {
+          const approval = !!autoApprove;
+          console.log(`\nDetected suspended state. ${approval ? 'Auto-approving' : 'Auto-denying'}...\n`);
+          try {
+            await (run as any).resume?.({ resumeData: { approved: approval } });
+          } catch {}
+        }
+
+        if (!resolved && (normalized === 'COMPLETED' || normalized === 'FAILED')) {
+          resolved = true;
+          try {
+            const final = await (workflow as any).runExecutionResult?.(run.runId);
+            resolve(final ?? record);
+          } catch {
+            resolve(record);
+          }
+        }
+      });
+    } catch {
+      // no-op
+    }
+    // Fallback polling in case watch is not available
+    const poll = async () => {
+      if (resolved) return;
+      try {
+        const final = await (workflow as any).runExecutionResult?.(run.runId);
+        if (final) {
+          resolved = true;
+          resolve(final);
+          return;
+        }
+      } catch {}
+      setTimeout(poll, 3000);
+    };
+    setTimeout(poll, 15000);
+  });
+
   // Start with an initial query
   console.log(`Starting workflow with query: "${initialQuery}"\n`);
-  let result = await run.start({ inputData: { query: initialQuery } });
-  console.log("After start:\n", JSON.stringify({
-    status: result.status,
-    suspended: (result as any).suspended,
-    steps: result.steps?.["research"]
-      ? { research: result.steps["research"].status }
-      : undefined
-  }, null, 2));
 
-  // If approval step suspended, optionally auto-approve/deny
-  if (result?.status === "suspended" && autoApprove !== undefined) {
-    const approval = autoApprove ? true : false;
-    console.log(`\n${approval ? "Approving" : "Denying"} the research query...\n`);
-    result = await run.resume({ resumeData: { approved: approval } });
-    console.log(`After ${approval ? "approval" : "denial"}:\n`, JSON.stringify(result, null, 2));
+  const startFn = (run as any).startAsync || (run as any).start;
+  let startResult: any;
+  if (startFn === (run as any).startAsync) {
+    // If supported, wait until completion via startAsync
+    startResult = await (run as any).startAsync({ inputData: { query: initialQuery } });
+  } else {
+    // Fire-and-watch pattern
+    await (run as any).start({ inputData: { query: initialQuery } });
+    startResult = await waitForFinal();
   }
 
-  // Log final result (success or failed)
-  console.log("\nFinal result:\n", JSON.stringify(result, null, 2));
+  console.log("\nFinal result:\n", JSON.stringify(startResult, null, 2));
 }
 
 main().catch((err) => {

@@ -44,9 +44,8 @@ export const extractLearningsTool = createTool({
         },
       );
 
-      console.log('Learning extraction response:', response.object);
-
-      return response.object;
+      const obj = response.object || { learning: '', followUpQuestions: [] };
+      return obj;
     } catch (error) {
       console.error('Error extracting learnings:', error);
       return {

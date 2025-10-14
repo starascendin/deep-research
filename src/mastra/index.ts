@@ -7,6 +7,7 @@ import { reportAgent } from './agents/reportAgent';
 import { researchAgent } from './agents/researchAgent';
 import { webSummarizationAgent } from './agents/webSummarizationAgent';
 import { generateReportWorkflow } from './workflows/generateReportWorkflow';
+import { researchWorkflowDirect } from './workflows/researchWorkflowDirect';
 
 export const mastra = new Mastra({
   storage: new LibSQLStore({
@@ -19,7 +20,7 @@ export const mastra = new Mastra({
     learningExtractionAgent,
     webSummarizationAgent,
   },
-  workflows: { generateReportWorkflow, researchWorkflow },
+  workflows: { generateReportWorkflow, researchWorkflow, researchWorkflowDirect },
   observability: {
     default: {
       enabled: true,

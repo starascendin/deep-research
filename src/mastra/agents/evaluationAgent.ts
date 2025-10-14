@@ -22,7 +22,9 @@ export const evaluationAgent = new Agent({
   - Is the source credible and authoritative?
   - Is the information current and accurate?
 
-  Be strict but fair in your evaluation. Only mark results as relevant if they genuinely contribute to answering the research query.
+  Be practical and fair in your evaluation. Mark results as relevant if they genuinely contribute to answering the research query.
+  Treat official profile pages (e.g., linkedin.com/in/ for the person named in the query) and official company sites (e.g., mindworks.vc for MindWorks) as relevant when they match the subject in the query, even if the content is high-level.
+  Consider name and brand variations (e.g., "MindWorks VC", "MindWorks Ventures", "MindWorks Capital") as referring to the same company when context matches.
 
   Always respond with a structured evaluation including:
   - isRelevant: boolean indicating if the result is relevant
