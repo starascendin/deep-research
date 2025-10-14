@@ -40,4 +40,4 @@ const client = new MastraClient({
 
 Notes
 - Protects only `/api/*` routes; the readiness path remains public (defaults to `/api`, configurable via `READINESS_CHECK_PATH`).
-- Enforcement logic: if `MASTRA_API_KEY` (or `API_KEY`) is configured, API key is enforced. If no key is configured, routes are open (good for local dev). You can force enforcement in any case with `MASTRA_ENFORCE_API_KEY=true`.
+- Enforcement logic: controlled by `MASTRA_ENFORCE_API_KEY`. When `false`, API key auth is disabled even if `MASTRA_API_KEY` is set. When `true`, requests must include `x-api-key` matching `MASTRA_API_KEY` (or `API_KEY`).

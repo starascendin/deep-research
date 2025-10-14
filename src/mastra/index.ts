@@ -34,8 +34,8 @@ export const mastra = new Mastra({
         path: '/api/*',
         handler: async (c, next) => {
           const configuredKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
-          const forceEnforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
-          const enforce = forceEnforce || Boolean(configuredKey);
+          // Enforce only when explicitly enabled
+          const enforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
 
           // Allow readiness path to bypass auth (prevents 401 on probes)
           const url = new URL(c.req.url);
@@ -50,7 +50,7 @@ export const mastra = new Mastra({
           const isReadiness = readinessVariants.has(path);
 
           if (!enforce || isReadiness) {
-            // No key configured (dev) or readiness probe: skip enforcement
+            // Enforcement disabled or readiness probe: skip
             return next();
           }
 
