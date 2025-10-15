@@ -37,6 +37,8 @@ export const mastra = new Mastra({
         'Authorization',
         'x-mastra-client-type',
         'x-api-key',
+        'x-mastra-cloud',
+        'x-playground-access',
       ],
       exposeHeaders: ['Content-Length', 'X-Requested-With'],
       credentials: false,
@@ -53,7 +55,7 @@ export const mastra = new Mastra({
         c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         c.header(
           'Access-Control-Allow-Headers',
-          'Content-Type, Authorization, x-mastra-client-type, x-api-key'
+          'Content-Type, Authorization, x-mastra-client-type, x-api-key, x-mastra-cloud, x-playground-access'
         );
         c.header('Access-Control-Expose-Headers', 'Content-Length, X-Requested-With');
         c.header('Access-Control-Max-Age', '86400');
@@ -70,6 +72,7 @@ export const mastra = new Mastra({
           const configuredKey = process.env.MASTRA_API_KEY || process.env.API_KEY;
           // Enforce only when explicitly enabled
           const enforce = process.env.MASTRA_ENFORCE_API_KEY === 'true';
+          const allowCloudJwt = process.env.MASTRA_ALLOW_CLOUD_JWT === 'true';
 
           // Allow readiness path to bypass auth (prevents 401 on probes)
           const url = new URL(c.req.url);
@@ -90,6 +93,16 @@ export const mastra = new Mastra({
 
           if (!enforce || isReadiness) {
             // Enforcement disabled or readiness probe: skip
+            return next();
+          }
+
+          // Allow Mastra Cloud dashboard access via JWT when enabled
+          const isFromMastraCloudHeader = c.req.header('x-mastra-cloud') === 'true';
+          const origin = c.req.header('Origin');
+          const isFromMastraCloudOrigin = origin === 'https://cloud.mastra.ai';
+          const bearerToken = c.req.header('authorization') || c.req.header('x-playground-access');
+          const hasBearer = !!bearerToken && bearerToken.startsWith('Bearer ');
+          if (allowCloudJwt && (isFromMastraCloudHeader || isFromMastraCloudOrigin) && hasBearer) {
             return next();
           }
 
