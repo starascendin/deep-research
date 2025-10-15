@@ -22,8 +22,9 @@ const getUserQueryStep = createStep({
       query: z.string(),
     }),
   }),
-  execute: async ({ inputData, resumeData, suspend }) => {
-    console.info('[workflow:research-workflow][step:get-user-query] start', { inputData, resumeData });
+  execute: async ({ inputData, resumeData, suspend, mastra }) => {
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-workflow][step:get-user-query] start', { inputData, resumeData });
     // Prefer resumeData (explicit user response), otherwise use start input
     const query = resumeData?.query ?? inputData?.query;
 
@@ -53,7 +54,8 @@ const researchStep = createStep({
   }),
   execute: async ({ inputData, mastra }) => {
     const { query } = inputData;
-    console.info('[workflow:research-workflow][step:research] start', { query });
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-workflow][step:research] start', { query });
 
     try {
       const agent = mastra.getAgent('researchAgent');
@@ -71,7 +73,7 @@ const researchStep = createStep({
         "phase"?: "initial" | "follow-up"
       }`;
 
-      console.info('[agent:researchAgent] generate start');
+      logger.info('[agent:researchAgent] generate start');
       const result = await agent.generate(
         [
           {
@@ -169,6 +171,7 @@ const researchStep = createStep({
         }
       }
 
+      logger.info('[workflow:research-workflow][step:research] completed');
       return {
         researchData: structured ?? { rawText: (result as any).text },
         summary,
@@ -197,8 +200,9 @@ const approvalStep = createStep({
   resumeSchema: z.object({
     approved: z.boolean(),
   }),
-  execute: async ({ inputData, resumeData, suspend }) => {
-    console.info('[workflow:research-workflow][step:approval] start', { inputKeys: Object.keys(inputData || {}) });
+  execute: async ({ inputData, resumeData, suspend, mastra }) => {
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-workflow][step:approval] start', { inputKeys: Object.keys(inputData || {}) });
     if (resumeData) {
       return {
         ...resumeData,
@@ -210,7 +214,7 @@ const approvalStep = createStep({
       summary: inputData.summary,
       message: `Is this research sufficient? [y/n] `,
     });
-    console.info('[workflow:research-workflow][step:approval] suspended awaiting user input');
+    logger.info('[workflow:research-workflow][step:approval] suspended awaiting user input');
 
     return {
       approved: false,

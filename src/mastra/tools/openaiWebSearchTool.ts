@@ -14,9 +14,10 @@ export const openaiWebSearchTool = createTool({
   inputSchema: z.object({
     query: z.string().describe('The search query to run'),
   }),
-  execute: async ({ context }) => {
+  execute: async ({ context, mastra }) => {
     const { query } = context as { query: string };
-    console.info('[tool:openai-web-search] invoked', { query });
+    const logger = mastra?.getLogger();
+    logger?.info('[tool:openai-web-search] invoked', { query });
     try {
       const anyOpenAI: any = openai;
       const toolsConfig: Record<string, any> = {};

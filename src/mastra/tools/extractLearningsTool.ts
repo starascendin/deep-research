@@ -17,14 +17,12 @@ export const extractLearningsTool = createTool({
   execute: async ({ context, mastra }) => {
     try {
       const { query, result } = context;
-      console.info('[tool:extract-learnings] invoked', {
-        query,
-        result: { title: result?.title, url: result?.url },
-      });
+      const logger = mastra?.getLogger();
+      logger?.info('[tool:extract-learnings] invoked', { query, result: { title: result?.title, url: result?.url } });
 
       const learningExtractionAgent = mastra!.getAgent('learningExtractionAgent');
 
-      console.info('[agent:learningExtractionAgent] generate start');
+      logger?.info('[agent:learningExtractionAgent] generate start');
       const response = await learningExtractionAgent.generate(
         [
           {
@@ -52,7 +50,8 @@ export const extractLearningsTool = createTool({
       const obj = response.object || { learning: '', followUpQuestions: [] };
       return obj;
     } catch (error) {
-      console.error('Error extracting learnings:', error);
+      const logger = mastra?.getLogger();
+      logger?.error('Error extracting learnings', { error: (error as any)?.message });
       return {
         learning: 'Error extracting information',
         followUpQuestions: [],

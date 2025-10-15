@@ -24,7 +24,8 @@ const exaSearchStep = createStep({
   }),
   execute: async ({ inputData, mastra }) => {
     const { query } = inputData;
-    console.info('[workflow:research-multi-web][step:exa-web-search] start', { query });
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-multi-web][step:exa-web-search] start', { query });
     const exa = await (webSearchTool as any).execute({ context: { query }, mastra });
     const exaResults = (exa?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
     return { query, exaResults };
@@ -45,9 +46,10 @@ const openaiSearchStep = createStep({
       )
       .default([]),
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, mastra }) => {
     const { query } = inputData;
-    console.info('[workflow:research-multi-web][step:openai-web-search] start', { query });
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-multi-web][step:openai-web-search] start', { query });
     const oai = await (openaiWebSearchTool as any).execute({ context: { query } });
     const oaiResults = (oai?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
     return { query, oaiResults };
@@ -83,7 +85,8 @@ const mergeEvaluateStep = createStep({
   execute: async ({ inputData, mastra }) => {
     const exaPart = inputData['exa-web-search'];
     const oaiPart = inputData['openai-web-search'];
-    console.info('[workflow:research-multi-web][step:merge-evaluate] start', {
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-multi-web][step:merge-evaluate] start', {
       exaCount: Array.isArray(exaPart?.exaResults) ? exaPart.exaResults.length : 0,
       oaiCount: Array.isArray(oaiPart?.oaiResults) ? oaiPart.oaiResults.length : 0,
     });
@@ -180,10 +183,11 @@ const multiWebReportStep = createStep({
   }),
   execute: async ({ inputData, mastra }) => {
     const { query, researchData } = inputData;
-    console.info('[workflow:research-multi-web][step:multi-web-report] start', { query });
+    const logger = mastra.getLogger();
+    logger.info('[workflow:research-multi-web][step:multi-web-report] start', { query });
     try {
       const agent = mastra.getAgent('reportAgent');
-      console.info('[agent:reportAgent] generate start');
+      logger.info('[agent:reportAgent] generate start');
       const response = await agent.generate([
         {
           role: 'user',

@@ -17,10 +17,8 @@ export const evaluateResultTool = createTool({
   execute: async ({ context, mastra }) => {
     try {
       const { query, result } = context;
-      console.info('[tool:evaluate-result] invoked', {
-        query,
-        result: { title: result?.title, url: result?.url },
-      });
+      const logger = mastra?.getLogger();
+      logger?.info('[tool:evaluate-result] invoked', { query, result: { title: result?.title, url: result?.url } });
 
       // Lightweight heuristics to reduce false negatives on official pages
       const q = (query || '').toLowerCase();
@@ -47,7 +45,7 @@ export const evaluateResultTool = createTool({
 
       const evaluationAgent = mastra!.getAgent('evaluationAgent');
 
-      console.info('[agent:evaluationAgent] generate start');
+      logger?.info('[agent:evaluationAgent] generate start');
       const response = await evaluationAgent.generate(
         [
           {
@@ -74,7 +72,8 @@ export const evaluateResultTool = createTool({
 
       return response.object;
     } catch (error) {
-      console.error('Error evaluating result:', error);
+      const logger = mastra?.getLogger();
+      logger?.error('Error evaluating result', { error: (error as any)?.message });
       return {
         isRelevant: false,
         reason: 'Error in evaluation',

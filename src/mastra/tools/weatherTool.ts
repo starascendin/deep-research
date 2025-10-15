@@ -58,9 +58,10 @@ export const weatherTool = createTool({
       .default('celsius')
       .describe('Temperature unit'),
   }),
-  execute: async ({ context }) => {
+  execute: async ({ context, mastra }) => {
     const { city, unit } = context as { city: string; unit: 'celsius' | 'fahrenheit' };
-    console.info('[tool:weather] invoked', { city, unit });
+    const logger = mastra?.getLogger();
+    logger?.info('[tool:weather] invoked', { city, unit });
 
     try {
       // 1) Geocode city → lat/lon

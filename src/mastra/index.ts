@@ -1,4 +1,5 @@
 import { Mastra } from '@mastra/core';
+import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 import { researchWorkflow } from './workflows/researchWorkflow';
 import { learningExtractionAgent } from './agents/learningExtractionAgent';
@@ -10,10 +11,15 @@ import { generateReportWorkflow } from './workflows/generateReportWorkflow';
 import { researchWorkflowDirect } from './workflows/researchWorkflowDirect';
 import { researchMultiWeb } from './workflows/researchMultiWeb';
 import { basicAgent } from './agents/basicAgent';
+import { basicAgentWorkflow } from './workflows/basicAgentWorkflow';
 
 export const mastra = new Mastra({
   storage: new LibSQLStore({
     url: 'file:../mastra.db',
+  }),
+  logger: new PinoLogger({
+    name: 'Mastra',
+    level: 'info',
   }),
   agents: {
     basicAgent,
@@ -23,7 +29,7 @@ export const mastra = new Mastra({
     learningExtractionAgent,
     webSummarizationAgent,
   },
-  workflows: { generateReportWorkflow, researchWorkflow, researchWorkflowDirect, researchMultiWeb },
+  workflows: { generateReportWorkflow, researchWorkflow, researchWorkflowDirect, researchMultiWeb, basicAgentWorkflow },
   observability: {
     default: {
       enabled: true,
@@ -69,10 +75,15 @@ export const mastra = new Mastra({
         try {
           const url = new URL(c.req.url);
           const path = (c.req as any).path ?? url.pathname;
-          // Do not log sensitive headers
-          const ua = c.req.header('user-agent');
-          const clientType = c.req.header('x-mastra-client-type');
-          console.info('[http] request', { method: c.req.method, path, clientType, ua });
+          // Gate noisy http logs to production or explicit opt-in
+          const logHttp = process.env.MASTRA_LOG_HTTP === 'true' || process.env.NODE_ENV === 'production';
+          const isDevRefresh = path === '/__refresh' || path.startsWith('/refresh-events');
+          if (logHttp && !isDevRefresh) {
+            // Do not log sensitive headers
+            const ua = c.req.header('user-agent');
+            const clientType = c.req.header('x-mastra-client-type');
+            console.info('[http] request', { method: c.req.method, path, clientType, ua });
+          }
         } catch {}
 
         await next();
@@ -126,10 +137,13 @@ export const mastra = new Mastra({
             return new Response('Unauthorized', { status: 401 });
           }
 
-          // Log safe subset of request info for API routes
+          // Log safe subset of request info for API routes (gated)
           try {
-            const q = url.search || '';
-            console.info('[api] authorized request', { method: c.req.method, path: `${path}${q}` });
+            const logHttp = process.env.MASTRA_LOG_HTTP === 'true' || process.env.NODE_ENV === 'production';
+            if (logHttp) {
+              const q = url.search || '';
+              console.info('[api] authorized request', { method: c.req.method, path: `${path}${q}` });
+            }
           } catch {}
 
           await next();

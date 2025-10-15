@@ -14,7 +14,8 @@ export const webSearchTool = createTool({
   }),
   execute: async ({ context, mastra }) => {
     const { query } = context;
-    console.info('[tool:web-search] invoked', { query });
+    const logger = mastra?.getLogger();
+    logger?.info('[tool:web-search] invoked', { query });
 
     try {
       if (!process.env.EXA_API_KEY) {
@@ -22,18 +23,18 @@ export const webSearchTool = createTool({
         return { results: [], error: 'Missing API key' };
       }
 
-      console.info('[tool:web-search] searching', { query });
+      logger?.info('[tool:web-search] searching', { query });
       const { results } = await exa.searchAndContents(query, {
         // livecrawl: 'always',
         numResults: 3,
       });
 
       if (!results || results.length === 0) {
-        console.info('[tool:web-search] no results');
+        logger?.info('[tool:web-search] no results');
         return { results: [], error: 'No results found' };
       }
 
-      console.info('[tool:web-search] results found, summarizing', { count: results.length });
+      logger?.info('[tool:web-search] results found, summarizing', { count: results.length });
 
       // Get the summarization agent
       const summaryAgent = mastra!.getAgent('webSummarizationAgent');
@@ -53,7 +54,7 @@ export const webSearchTool = createTool({
           }
 
           // Summarize the content
-          console.info('[agent:webSummarizationAgent] generate start');
+          logger?.info('[agent:webSummarizationAgent] generate start');
           const summaryResponse = await summaryAgent.generate([
             {
               role: 'user',
@@ -73,7 +74,7 @@ Provide a concise summary that captures the key information relevant to the rese
             content: summaryResponse.text,
           });
 
-          console.info('[tool:web-search] summary complete', { title: result.title || result.url });
+          logger?.info('[tool:web-search] summary complete', { title: result.title || result.url });
         } catch (summaryError) {
           console.error('Error summarizing content:', summaryError);
           // Fallback to truncated original content
