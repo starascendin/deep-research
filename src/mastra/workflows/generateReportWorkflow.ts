@@ -40,7 +40,8 @@ const processResearchResultStep = createStep({
       logger.info('[workflow:generate-report-workflow] report generated');
       return { report: response.text, completed: true };
     } catch (error) {
-      console.error('Error generating report:', error);
+      const logger = mastra.getLogger();
+      logger.error('Error generating report', { error: (error as any)?.message });
       return { completed: false };
     }
   },

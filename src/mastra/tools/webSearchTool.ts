@@ -19,7 +19,8 @@ export const webSearchTool = createTool({
 
     try {
       if (!process.env.EXA_API_KEY) {
-        console.error('Error: EXA_API_KEY not found in environment variables');
+        const logger = mastra?.getLogger();
+        logger?.error('Error: EXA_API_KEY not found in environment variables');
         return { results: [], error: 'Missing API key' };
       }
 
@@ -76,7 +77,8 @@ Provide a concise summary that captures the key information relevant to the rese
 
           logger?.info('[tool:web-search] summary complete', { title: result.title || result.url });
         } catch (summaryError) {
-          console.error('Error summarizing content:', summaryError);
+          const logger = mastra?.getLogger();
+          logger?.error('Error summarizing content', { error: (summaryError as any)?.message });
           // Fallback to truncated original content
           processedResults.push({
             title: result.title || '',
@@ -90,9 +92,9 @@ Provide a concise summary that captures the key information relevant to the rese
         results: processedResults,
       };
     } catch (error) {
-      console.error('Error searching the web:', error);
+      const logger = mastra?.getLogger();
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error details:', errorMessage);
+      logger?.error('Error searching the web', { error: errorMessage });
       return {
         results: [],
         error: errorMessage,

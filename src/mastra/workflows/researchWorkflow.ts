@@ -177,7 +177,8 @@ const researchStep = createStep({
         summary,
       };
     } catch (error: any) {
-      console.log({ error });
+      const logger = mastra.getLogger();
+      logger.error('[workflow:research-workflow][step:research] error', { error: error?.message });
       return {
         researchData: { error: error.message },
         summary: `Error: ${error.message}`,
