@@ -604,7 +604,7 @@ The OpenAI Responses API supports structured outputs. You can enforce structured
 ```ts
 // Using generateObject
 const result = await generateObject({
-  model: openai('gpt-4.1'),
+  model: openai('gpt-4.1-mini'),
   schema: z.object({
     recipe: z.object({
       name: z.string(),
@@ -622,7 +622,7 @@ const result = await generateObject({
 
 // Using generateText
 const result = await generateText({
-  model: openai('gpt-4.1'),
+  model: openai('gpt-4.1-mini'),
   prompt: 'How do I make a pizza?',
   experimental_output: Output.object({
     schema: z.object({

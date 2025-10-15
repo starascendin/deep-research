@@ -5,7 +5,7 @@ import { extractLearningsTool } from '../tools/extractLearningsTool';
 import { webSearchTool } from '../tools/webSearchTool';
 import { openaiWebSearchTool } from '../tools/openaiWebSearchTool';
 
-const mainModel = openai('gpt-4.1');
+const mainModel = openai('gpt-4.1-mini');
 
 export const researchAgent = new Agent({
   name: 'Research Agent',

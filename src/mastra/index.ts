@@ -6,12 +6,20 @@ import { learningExtractionAgent } from './agents/learningExtractionAgent';
 import { evaluationAgent } from './agents/evaluationAgent';
 import { reportAgent } from './agents/reportAgent';
 import { researchAgent } from './agents/researchAgent';
+import { xaiSearchAgent } from './agents/xaiSearchAgent';
 import { webSummarizationAgent } from './agents/webSummarizationAgent';
 import { generateReportWorkflow } from './workflows/generateReportWorkflow';
 import { researchWorkflowDirect } from './workflows/researchWorkflowDirect';
 import { researchMultiWeb } from './workflows/researchMultiWeb';
+import { researchMultiWebXai } from './workflows/researchMultiWebXai';
 import { basicAgent } from './agents/basicAgent';
 import { basicAgentWorkflow } from './workflows/basicAgentWorkflow';
+import { weatherTool } from './tools/weatherTool';
+import { webSearchTool } from './tools/webSearchTool';
+import { evaluateResultTool } from './tools/evaluateResultTool';
+import { extractLearningsTool } from './tools/extractLearningsTool';
+import { openaiWebSearchTool } from './tools/openaiWebSearchTool';
+import { xaiWebSearchTool } from './tools/xaiWebSearchTool';
 
 export const mastra = new Mastra({
   storage: new LibSQLStore({
@@ -24,12 +32,28 @@ export const mastra = new Mastra({
   agents: {
     basicAgent,
     researchAgent,
+    xai_searchagent: xaiSearchAgent,
     reportAgent,
     evaluationAgent,
     learningExtractionAgent,
     webSummarizationAgent,
   },
-  workflows: { generateReportWorkflow, researchWorkflow, researchWorkflowDirect, researchMultiWeb, basicAgentWorkflow },
+  workflows: {
+    generateReportWorkflow,
+    researchWorkflow,
+    researchWorkflowDirect,
+    researchMultiWeb,
+    researchMultiWebXai,
+    basicAgentWorkflow,
+  },
+  tools: {
+    weather: weatherTool,
+    'web-search': webSearchTool,
+    'evaluate-result': evaluateResultTool,
+    'extract-learnings': extractLearningsTool,
+    'openai-web-search': openaiWebSearchTool,
+    'xai-web-search': xaiWebSearchTool,
+  },
   observability: {
     default: {
       enabled: true,
