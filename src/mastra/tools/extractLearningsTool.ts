@@ -17,9 +17,14 @@ export const extractLearningsTool = createTool({
   execute: async ({ context, mastra }) => {
     try {
       const { query, result } = context;
+      console.info('[tool:extract-learnings] invoked', {
+        query,
+        result: { title: result?.title, url: result?.url },
+      });
 
       const learningExtractionAgent = mastra!.getAgent('learningExtractionAgent');
 
+      console.info('[agent:learningExtractionAgent] generate start');
       const response = await learningExtractionAgent.generate(
         [
           {

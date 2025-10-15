@@ -60,6 +60,7 @@ export const weatherTool = createTool({
   }),
   execute: async ({ context }) => {
     const { city, unit } = context as { city: string; unit: 'celsius' | 'fahrenheit' };
+    console.info('[tool:weather] invoked', { city, unit });
 
     try {
       // 1) Geocode city → lat/lon
@@ -118,4 +119,3 @@ export const weatherTool = createTool({
     }
   },
 });
-

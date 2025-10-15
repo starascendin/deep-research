@@ -16,6 +16,7 @@ export const openaiWebSearchTool = createTool({
   }),
   execute: async ({ context }) => {
     const { query } = context as { query: string };
+    console.info('[tool:openai-web-search] invoked', { query });
     try {
       const anyOpenAI: any = openai;
       const toolsConfig: Record<string, any> = {};

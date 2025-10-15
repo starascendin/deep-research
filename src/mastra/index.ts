@@ -66,6 +66,15 @@ export const mastra = new Mastra({
           return new Response(null, { status: 204 });
         }
 
+        try {
+          const url = new URL(c.req.url);
+          const path = (c.req as any).path ?? url.pathname;
+          // Do not log sensitive headers
+          const ua = c.req.header('user-agent');
+          const clientType = c.req.header('x-mastra-client-type');
+          console.info('[http] request', { method: c.req.method, path, clientType, ua });
+        } catch {}
+
         await next();
       },
       {
@@ -116,6 +125,12 @@ export const mastra = new Mastra({
           if (!providedKey || providedKey !== configuredKey) {
             return new Response('Unauthorized', { status: 401 });
           }
+
+          // Log safe subset of request info for API routes
+          try {
+            const q = url.search || '';
+            console.info('[api] authorized request', { method: c.req.method, path: `${path}${q}` });
+          } catch {}
 
           await next();
         },

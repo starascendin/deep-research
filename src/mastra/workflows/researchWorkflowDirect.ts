@@ -18,6 +18,7 @@ const researchDirectStep = createStep({
   }),
   execute: async ({ inputData, mastra }) => {
     const { query } = inputData;
+    console.info('[workflow:research-workflow-direct][step:research-direct] start', { query });
 
     try {
       const agent = mastra.getAgent('researchAgent');
@@ -35,6 +36,7 @@ const researchDirectStep = createStep({
         "phase"?: "initial" | "follow-up"
       }`;
 
+      console.info('[agent:researchAgent] generate start');
       const result = await agent.generate(
         [
           {
@@ -94,10 +96,12 @@ const researchDirectStep = createStep({
       // Fallback path: if no structured data, synthesize from tools directly
       if (!structured || (!structured.searchResults && !structured.learnings)) {
         try {
+          console.info('[tool:web-search] execute from direct fallback', { query });
           const exaSearch = await (webSearchTool as any).execute({ context: { query }, mastra });
           const exaResults = (exaSearch?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
 
           // Also try OpenAI web search preview and merge results
+          console.info('[tool:openai-web-search] execute from direct fallback', { query });
           const openaiSearch = await (openaiWebSearchTool as any).execute({ context: { query } });
           const oaiResults = (openaiSearch?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
 
@@ -172,8 +176,10 @@ const generateReportDirectStep = createStep({
   }),
   execute: async ({ inputData, mastra }) => {
     const { query, researchData } = inputData;
+    console.info('[workflow:research-workflow-direct][step:generate-report-direct] start', { query });
     try {
       const agent = mastra.getAgent('reportAgent');
+      console.info('[agent:reportAgent] generate start');
       const response = await agent.generate([
         {
           role: 'user',

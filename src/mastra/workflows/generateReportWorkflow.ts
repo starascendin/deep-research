@@ -14,17 +14,21 @@ const processResearchResultStep = createStep({
     completed: z.boolean(),
   }),
   execute: async ({ inputData, mastra }) => {
+    console.info('[workflow:generate-report-workflow][step:process-research-result] start', {
+      hasResearchData: !!inputData.researchData,
+      approved: inputData.approved,
+    });
     // First determine if research was approved/successful
     const approved = inputData.approved && !!inputData.researchData;
 
     if (!approved) {
-      console.log('Research not approved or incomplete, ending workflow');
+      console.info('[workflow:generate-report-workflow] research not approved or incomplete');
       return { completed: false };
     }
 
     // If approved, generate report
     try {
-      console.log('Generating report...');
+      console.info('[agent:reportAgent] generate start');
       const agent = mastra.getAgent('reportAgent');
       const response = await agent.generate([
         {
@@ -32,8 +36,7 @@ const processResearchResultStep = createStep({
           content: `Generate a report based on this research: ${JSON.stringify(inputData.researchData)}`,
         },
       ]);
-
-      console.log('Report generated successfully!');
+      console.info('[workflow:generate-report-workflow] report generated');
       return { report: response.text, completed: true };
     } catch (error) {
       console.error('Error generating report:', error);
