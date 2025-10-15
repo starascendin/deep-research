@@ -17,7 +17,8 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
-    "@ai-sdk/openai": "2.0.0-beta.1",
+    "ai": "5.0.71",
+    "@ai-sdk/openai": "^2.0.0",
     "@mastra/auth": "^0.1.3",
     "@mastra/client-js": "^0.15.2",
     "@mastra/core": "latest",
@@ -26,6 +27,23 @@
     "@mastra/memory": "latest",
     "exa-js": "^1.8.27",
     "zod": "^3.25.76"
+  },
+  "overrides": {
+    "@mastra/core": {
+      "ai": "5.0.71"
+    },
+    "@mastra/client-js": {
+      "ai": "5.0.71"
+    },
+    "@mastra/loggers": {
+      "ai": "5.0.71"
+    },
+    "@mastra/memory": {
+      "ai": "5.0.71"
+    },
+    "@mastra/libsql": {
+      "ai": "5.0.71"
+    }
   },
   "devDependencies": {
     "@types/node": "^24.0.3",

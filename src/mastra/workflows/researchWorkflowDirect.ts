@@ -2,7 +2,8 @@ import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { webSearchTool } from '../tools/webSearchTool';
 import { evaluateResultTool } from '../tools/evaluateResultTool';
-import { extractLearningsTool } from '../tools/extractLearningsTool';
+// import { extractLearningsTool } from '../tools/extractLearningsTool';
+import { openaiWebSearchTool } from '../tools/openaiWebSearchTool';
 
 // Single-step research that does not suspend and requires no approval
 const researchDirectStep = createStep({
@@ -93,8 +94,19 @@ const researchDirectStep = createStep({
       // Fallback path: if no structured data, synthesize from tools directly
       if (!structured || (!structured.searchResults && !structured.learnings)) {
         try {
-          const search = await (webSearchTool as any).execute({ context: { query }, mastra });
-          const results = (search?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+          const exaSearch = await (webSearchTool as any).execute({ context: { query }, mastra });
+          const exaResults = (exaSearch?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+
+          // Also try OpenAI web search preview and merge results
+          const openaiSearch = await (openaiWebSearchTool as any).execute({ context: { query } });
+          const oaiResults = (openaiSearch?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+
+          const dedup = new Map<string, { title?: string; url?: string; content?: string }>();
+          for (const r of [...exaResults, ...oaiResults]) {
+            if (!r?.url) continue;
+            if (!dedup.has(r.url)) dedup.set(r.url, r);
+          }
+          const results = Array.from(dedup.values());
 
           const enriched = [] as Array<{ title?: string; url?: string; content?: string; isRelevant?: boolean; reason?: string }>;
           const learnings: Array<{ learning?: string; followUpQuestions?: string[]; source?: string }> = [];

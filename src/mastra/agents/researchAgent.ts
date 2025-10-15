@@ -3,6 +3,7 @@ import { Agent } from '@mastra/core/agent';
 import { evaluateResultTool } from '../tools/evaluateResultTool';
 import { extractLearningsTool } from '../tools/extractLearningsTool';
 import { webSearchTool } from '../tools/webSearchTool';
+import { openaiWebSearchTool } from '../tools/openaiWebSearchTool';
 
 const mainModel = openai('gpt-4.1');
 
@@ -50,6 +51,7 @@ export const researchAgent = new Agent({
   model: mainModel,
   tools: {
     webSearchTool,
+    openaiWebSearchTool,
     evaluateResultTool,
     extractLearningsTool,
   },
