@@ -49,6 +49,24 @@ Follow the interactive prompts:
 3. Approve or reject the research results
 4. If approved, a comprehensive report will be returned as output
 
+### Cloud Scripts
+
+The repository includes helper scripts under `zscripts/`:
+
+```bash
+# Invoke the cloud-hosted research agent directly (uses MASTRA_API_KEY)
+npm run agent:cloud -- --query "What is OpenAI o3?"
+
+# Run the research workflow against your cloud deployment (auto-approve by default)
+npm run workflow:cloud -- --query "Compare o4 vs o3"
+
+# Run the research workflow locally
+npm run workflow:local -- --query "Latest NVIDIA news"
+
+# Test OpenAI web search tools
+npm run websearch:test -- --query "Semaglutide diabetes"
+```
+
 ## Required Environment Variables
 
 Create a `.env` file with:
@@ -56,6 +74,11 @@ Create a `.env` file with:
 ```
 OPENAI_API_KEY=""
 EXA_API_KEY="your-exa-api-key"
+
+# Mastra Cloud auth (for cloud scripts)
+MASTRA_API_KEY="your-mastra-api-key"
+# Optional: override cloud URL
+# MASTRA_CLOUD_URL="https://your.mastra.cloud"
 ```
 
 ## Required Dependencies

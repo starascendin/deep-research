@@ -1,10 +1,10 @@
-import { mastra } from "./mastra";
+import { mastra } from "../src/mastra";
 
 // Test runner for the research workflow with suspend/resume handling
 // Usage examples:
-//   npx tsx src/test-run-workflow.ts "What is OpenAI o3?"
-//   npx tsx src/test-run-workflow.ts --query "What is OpenAI o3?" --approve
-//   npx tsx src/test-run-workflow.ts --query "Compare o4 vs o3" --deny
+//   npx tsx zscripts/test-run-workflow.ts "What is OpenAI o3?"
+//   npx tsx zscripts/test-run-workflow.ts --query "What is OpenAI o3?" --approve
+//   npx tsx zscripts/test-run-workflow.ts --query "Compare o4 vs o3" --deny
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -62,3 +62,4 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+

@@ -11,9 +11,9 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 // Test runner for the research workflow against cloud deployment
 // Usage examples:
-//   npx tsx src/test-run-workflow-cloud.ts "What is OpenAI o3?"
-//   npx tsx src/test-run-workflow-cloud.ts --query "What is OpenAI o3?" --approve
-//   npx tsx src/test-run-workflow-cloud.ts --query "Compare o4 vs o3" --deny
+//   npx tsx zscripts/test-run-workflow-cloud.ts "What is OpenAI o3?"
+//   npx tsx zscripts/test-run-workflow-cloud.ts --query "What is OpenAI o3?" --approve
+//   npx tsx zscripts/test-run-workflow-cloud.ts --query "Compare o4 vs o3" --deny
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -57,15 +57,16 @@ async function main() {
   }
 
   // Initialize the Mastra client pointing to the cloud deployment with API key auth
+  const baseUrl = process.env.MASTRA_CLOUD_URL || "https://hundreds-tinkling-teacher.mastra.cloud";
   const mastraClient = new MastraClient({
-    baseUrl: "https://hundreds-tinkling-teacher.mastra.cloud",
+    baseUrl,
     headers: {
       'x-api-key': apiKey,
     },
   });
 
   console.log("🔐 Connecting to cloud deployment with API key authentication");
-  console.log("🌐 URL: https://hundreds-tinkling-teacher.mastra.cloud\n");
+  console.log(`🌐 URL: ${baseUrl}\n`);
 
   const workflow = mastraClient.getWorkflow("researchWorkflow");
   const run = await workflow.createRunAsync();
@@ -136,3 +137,4 @@ main().catch((err) => {
   console.error("Error:", err);
   process.exit(1);
 });
+

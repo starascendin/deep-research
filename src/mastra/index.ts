@@ -9,12 +9,14 @@ import { webSummarizationAgent } from './agents/webSummarizationAgent';
 import { generateReportWorkflow } from './workflows/generateReportWorkflow';
 import { researchWorkflowDirect } from './workflows/researchWorkflowDirect';
 import { researchMultiWeb } from './workflows/researchMultiWeb';
+import { basicAgent } from './agents/basicAgent';
 
 export const mastra = new Mastra({
   storage: new LibSQLStore({
     url: 'file:../mastra.db',
   }),
   agents: {
+    basicAgent,
     researchAgent,
     reportAgent,
     evaluationAgent,

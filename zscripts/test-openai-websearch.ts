@@ -2,9 +2,9 @@
  * Test script for OpenAI Web Search tools using AI SDK v5.
  *
  * Usage examples:
- *   npx tsx src/test-openai-websearch.ts --query "What happened in San Francisco last week?"
- *   npx tsx src/test-openai-websearch.ts --tool web_search --query "Latest NVIDIA news"
- *   npx tsx src/test-openai-websearch.ts --tool web_search_preview --model gpt-5-mini --query "Semaglutide diabetes"
+ *   npx tsx zscripts/test-openai-websearch.ts --query "What happened in San Francisco last week?"
+ *   npx tsx zscripts/test-openai-websearch.ts --tool web_search --query "Latest NVIDIA news"
+ *   npx tsx zscripts/test-openai-websearch.ts --tool web_search_preview --model gpt-5-mini --query "Semaglutide diabetes"
  *
  * Flags:
  *   --query <text>     Required. The user query to search.

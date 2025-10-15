@@ -6,7 +6,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
+    "start": "mastra start",
+    "agent:cloud": "tsx zscripts/run-research-agent-cloud.ts",
+    "workflow:cloud": "tsx zscripts/test-run-workflow-cloud.ts",
+    "workflow:local": "tsx zscripts/test-run-workflow.ts",
+    "websearch:test": "tsx zscripts/test-openai-websearch.ts"
   },
   "keywords": [],
   "author": "",
