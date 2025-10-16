@@ -40,14 +40,16 @@ export const extractLearningsTool = createTool({
           },
         ],
         {
-          experimental_output: z.object({
-            learning: z.string(),
-            followUpQuestions: z.array(z.string()).max(1),
-          }),
+          structuredOutput: {
+            schema: z.object({
+              learning: z.string(),
+              followUpQuestions: z.array(z.string()).max(1),
+            }),
+          },
         },
       );
 
-      const obj = response.object || { learning: '', followUpQuestions: [] };
+      const obj = (response as any).object || { learning: '', followUpQuestions: [] };
       return obj;
     } catch (error) {
       const logger = mastra?.getLogger();

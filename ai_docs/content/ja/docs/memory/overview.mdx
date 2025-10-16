@@ -184,7 +184,7 @@ export const testAgent = new Agent({
         generateTitle: {
           model: ({ runtimeContext }) => {
             const userTier = runtimeContext.get("userTier");
-            return userTier === "premium" ? openai("gpt-4.1") : openai("gpt-4.1-nano");
+            return userTier === "premium" ? openai("gpt-4.1-mini") : openai("gpt-4.1-nano");
           },
           instructions: ({ runtimeContext }) => {
             const language = runtimeContext.get("userLanguage") || "English";

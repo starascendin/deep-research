@@ -4,13 +4,13 @@ import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 
 /**
- * OpenAI Web Search Preview tool
- * Uses OpenAI Responses API built-in web search tool to fetch up-to-date info.
- * Returns results in the same shape as other web search tools used in this repo.
+ * OpenAI Web Search tool
+ * Uses OpenAI web_search (or preview) via the AI SDK to fetch up-to-date info.
+ * Returns only the useful info: text response, sources, and citations.
  */
 export const openaiWebSearchTool = createTool({
   id: 'openai-web-search',
-  description: 'Search the web using OpenAI web_search (or preview) and return normalized results with text and sources',
+  description: 'Search the web using OpenAI web_search (or preview) and return the useful info (text, sources, citations)',
   inputSchema: z.object({
     query: z.string().describe('The search query to run'),
   }),
@@ -20,50 +20,45 @@ export const openaiWebSearchTool = createTool({
     logger?.info('[tool:openai-web-search] invoked', { query });
     try {
       const anyOpenAI: any = openai;
-      const toolsConfig: Record<string, any> = {};
-      if (anyOpenAI.tools?.webSearch) toolsConfig.web_search = anyOpenAI.tools.webSearch({});
-      if (anyOpenAI.tools?.webSearchPreview) toolsConfig.web_search_preview = anyOpenAI.tools.webSearchPreview({});
 
-      const { text, sources } = await generateText({
+      // Prefer the official web_search tool if available, else fall back to preview.
+      const tools: Record<string, any> = {};
+      if (anyOpenAI.tools?.webSearch) {
+        tools.web_search = anyOpenAI.tools.webSearch({
+          // optional example defaults; callers can extend this tool later if needed
+          searchContextSize: 'high',
+        });
+      } else if (anyOpenAI.tools?.webSearchPreview) {
+        tools.web_search_preview = anyOpenAI.tools.webSearchPreview({});
+      }
+
+      const result = await generateText({
         model: openai('gpt-5-mini'),
-        prompt: `Search the web for up-to-date information relevant to: "${query}". Provide a concise answer with clear citations.`,
-        tools: toolsConfig,
+        prompt: query,
+        tools,
+        // Force using the web_search tool when available
+        toolChoice: tools.web_search ? { type: 'tool', toolName: 'web_search' } : undefined,
       });
-
-      // Normalize sources to our expected result shape
-      const normalizedSources: Array<{ title?: string; url?: string; snippet?: string }> = [];
-      const processedResults: Array<{ title?: string; url?: string; content?: string }> = [];
-
-      const srcArr = Array.isArray((sources as any)) ? (sources as any) : [];
-      for (const s of srcArr) {
-        const url = s?.url || s?.href || '';
-        const title = s?.title || url || 'Source';
-        const snippet = s?.snippet || s?.text || s?.description || '';
-        if (typeof url === 'string' && url.length > 0) {
-          normalizedSources.push({ title, url, snippet });
-          processedResults.push({ title, url, content: snippet });
-        }
-      }
-
-      // Fallbacks when sources are not provided:
-      if (processedResults.length === 0 && typeof text === 'string' && text.length > 0) {
-        // Try to extract URLs from the text
-        const urlRegex = /https?:\/\/[^\s)]+/g;
-        const found = Array.from(new Set(text.match(urlRegex) || []));
-        if (found.length > 0) {
-          for (const u of found.slice(0, 10)) {
-            processedResults.push({ title: u, url: u, content: 'Referenced by OpenAI web search summary' });
-          }
-        } else {
-          // As a last resort, include a pseudo-source entry with a stable URL
-          processedResults.push({ title: 'OpenAI Web Search Summary', url: 'oai://summary', content: text });
-          normalizedSources.push({ title: 'OpenAI Web Search Summary', url: 'oai://summary', snippet: text });
-        }
-      }
-
-      return { text, sources: normalizedSources, results: processedResults };
+      // Extract useful info: text response and sources (citations may not be present)
+      const text = result.text || '';
+      const sources = (result as any).sources || [];
+      return {
+        text,
+        sources,
+        citations: [],
+        usage: {
+          inputTokens: result.usage?.inputTokens || 0,
+          outputTokens: result.usage?.outputTokens || 0,
+          totalTokens: result.usage?.totalTokens || 0,
+        },
+      };
     } catch (error: any) {
-      return { results: [], error: error?.message || 'OpenAI web search failed' };
+      return { 
+        error: error?.message || 'OpenAI web search failed',
+        text: '',
+        sources: [],
+        citations: [],
+      };
     }
   },
 });

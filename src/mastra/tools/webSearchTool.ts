@@ -10,10 +10,14 @@ export const webSearchTool = createTool({
   id: 'web-search',
   description: 'Search the web for information on a specific query and return summarized content',
   inputSchema: z.object({
-    query: z.string().describe('The search query to run'),
+    query: z.string().describe('The search query to run (can be a URL for hydration)'),
+    // When true, skip summarization and return raw/truncated content. Useful for hydration.
+    skipSummarization: z.boolean().optional().default(false),
+    // Optional override for number of results to fetch (defaults to 3, or 1 for hydration)
+    numResults: z.number().int().positive().optional(),
   }),
   execute: async ({ context, mastra }) => {
-    const { query } = context;
+    const { query, skipSummarization = false } = context as { query: string; skipSummarization?: boolean; numResults?: number };
     const logger = mastra?.getLogger();
     logger?.info('[tool:web-search] invoked', { query });
 
@@ -24,10 +28,11 @@ export const webSearchTool = createTool({
         return { results: [], error: 'Missing API key' };
       }
 
-      logger?.info('[tool:web-search] searching', { query });
+      const desiredNumResults = (context as any)?.numResults ?? (skipSummarization ? 1 : 3);
+      logger?.info('[tool:web-search] searching', { query, numResults: desiredNumResults, skipSummarization });
       const { results } = await exa.searchAndContents(query, {
         // livecrawl: 'always',
-        numResults: 3,
+        numResults: desiredNumResults,
       });
 
       if (!results || results.length === 0) {
@@ -35,15 +40,29 @@ export const webSearchTool = createTool({
         return { results: [], error: 'No results found' };
       }
 
-      logger?.info('[tool:web-search] results found, summarizing', { count: results.length });
+      if (!skipSummarization) {
+        logger?.info('[tool:web-search] results found, summarizing', { count: results.length });
+      } else {
+        logger?.info('[tool:web-search] results found, skipping summarization', { count: results.length });
+      }
 
-      // Get the summarization agent
-      const summaryAgent = mastra!.getAgent('webSummarizationAgent');
+      // Get the summarization agent (only used if skipSummarization is false)
+      const summaryAgent = skipSummarization ? undefined : mastra!.getAgent('webSummarizationAgent');
 
       // Process each result with summarization
       const processedResults = [];
       for (const result of results) {
         try {
+          // If skipping summarization, just pass through raw/truncated content
+          if (skipSummarization) {
+            processedResults.push({
+              title: result.title || '',
+              url: result.url,
+              content: result.text ? result.text.substring(0, 2000) : 'No content available',
+            });
+            continue;
+          }
+
           // Skip if content is too short or missing
           if (!result.text || result.text.length < 100) {
             processedResults.push({
@@ -56,7 +75,7 @@ export const webSearchTool = createTool({
 
           // Summarize the content
           logger?.info('[agent:webSummarizationAgent] generate start');
-          const summaryResponse = await summaryAgent.generate([
+          const summaryResponse = await summaryAgent!.generate([
             {
               role: 'user',
               content: `Please summarize the following web content for research query: "${query}"

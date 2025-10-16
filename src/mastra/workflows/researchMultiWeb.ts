@@ -51,7 +51,15 @@ const openaiSearchStep = createStep({
     const logger = mastra.getLogger();
     logger.info('[workflow:research-multi-web][step:openai-web-search] start', { query });
     const oai = await (openaiWebSearchTool as any).execute({ context: { query } });
-    const oaiResults = (oai?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+    // Normalize OpenAI tool output (text, sources, citations) to {title,url,content}[]
+    const oaiSources = Array.isArray((oai as any)?.sources) ? (oai as any).sources : [];
+    const oaiResults = (oaiSources as any[])
+      .map((s: any) => ({
+        title: s?.title || s?.name || s?.pageTitle || s?.publisher || undefined,
+        url: s?.url || s?.link || s?.href || (s?.metadata && s?.metadata.url) || undefined,
+        content: s?.snippet || s?.description || s?.summary || '',
+      }))
+      .filter(r => !!r.url) as Array<{ title?: string; url?: string; content?: string }>;
     return { query, oaiResults };
   },
 });
@@ -118,14 +126,14 @@ const mergeEvaluateStep = createStep({
     const toHydrate = merged.filter(r => !r.content || r.content.trim().length < 20).slice(0, 8);
     for (const r of toHydrate) {
       try {
-        const fetched = await (webSearchTool as any).execute({ context: { query: r.url }, mastra });
+        const fetched = await (webSearchTool as any).execute({ context: { query: r.url, skipSummarization: true, numResults: 1 }, mastra });
         const fres = (fetched?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
         // Find best match by exact URL, else same hostname
         const exact = fres.find(fr => fr.url === r.url);
         const byHost = !exact
           ? (() => {
               try {
-                const host = new URL(r.url).host;
+                const host = new URL(r.url || '').host;
                 return fres.find(fr => {
                   try { return new URL(fr.url || '').host === host; } catch { return false; }
                 });
@@ -174,6 +182,7 @@ const multiWebReportStep = createStep({
   inputSchema: z.object({
     query: z.string(),
     researchData: z.any(),
+    summary: z.string(),
   }),
   outputSchema: z.object({
     report: z.string(),

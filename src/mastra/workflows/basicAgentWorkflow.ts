@@ -39,14 +39,16 @@ const basicAgentStep = createStep({
       return {
         response,
         usage: result.usage ? {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          totalTokens: result.usage.totalTokens,
+          inputTokens: result.usage.inputTokens ?? 0,
+          outputTokens: result.usage.outputTokens ?? 0,
+          totalTokens: result.usage.totalTokens ?? 0,
         } : undefined,
-        toolCalls: result.toolCalls?.map((tc: any) => ({
-          toolName: tc.payload?.toolName,
-          args: tc.payload?.args,
-        })),
+        toolCalls: Array.isArray((result as any).toolCalls)
+          ? (result as any).toolCalls.map((tc: any) => ({
+              toolName: tc?.payload?.toolName,
+              args: tc?.payload?.args,
+            }))
+          : [],
       };
     } catch (error: any) {
       logger.error('[workflow:basic-agent-workflow][step:basic-agent-query] error', { message: error?.message, stack: error?.stack });

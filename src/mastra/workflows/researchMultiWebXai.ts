@@ -2,6 +2,7 @@ import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { webSearchTool } from '../tools/webSearchTool';
 import { openaiWebSearchTool } from '../tools/openaiWebSearchTool';
+import { xaiWebSearchTool } from '../tools/xaiWebSearchTool';
 import { evaluateResultTool } from '../tools/evaluateResultTool';
 
 // Step 1: Exa search
@@ -50,13 +51,27 @@ const openaiSearchStep = createStep({
     const { query } = inputData;
     const logger = mastra.getLogger();
     logger.info('[workflow:research-multi-web-xai][step:openai-web-search] start', { query });
-    const oai = await (openaiWebSearchTool as any).execute({ context: { query } });
-    const oaiResults = (oai?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+    const oai = await (openaiWebSearchTool as any).execute({ context: { query }, mastra });
+    // Normalize OpenAI tool output (text, sources, citations) to {title,url,content}[] with robust fallbacks
+    const text = (oai as any)?.text || '';
+    const oaiSources = Array.isArray((oai as any)?.sources) ? (oai as any).sources : [];
+    const fromSources = (oaiSources as any[])
+      .map((s: any) => ({
+        title: s?.title || s?.name || s?.pageTitle || s?.publisher || undefined,
+        url: s?.url || s?.link || s?.href || (s?.metadata && s?.metadata.url) || undefined,
+        content: s?.snippet || s?.description || s?.summary || '',
+      }))
+      .filter(r => !!r.url);
+    // Fallback: extract URLs from text if no structured sources
+    const urlRegex = /https?:\/\/[^\s)]+/g;
+    const fallbackUrls: string[] = Array.from(new Set((text.match(urlRegex) || []).slice(0, 5)));
+    const fromText = fallbackUrls.map((u) => ({ title: undefined, url: u, content: '' }));
+    const oaiResults = (fromSources.length > 0 ? fromSources : fromText) as Array<{ title?: string; url?: string; content?: string }>;
     return { query, oaiResults };
   },
 });
 
-// Step 2b: xAI agent search (uses xai_searchagent to call xAI live search tool)
+// Step 2b: xAI web search (directly call the xAI web search tool)
 const xaiAgentSearchStep = createStep({
   id: 'xai-agent-search',
   inputSchema: z.object({
@@ -73,40 +88,26 @@ const xaiAgentSearchStep = createStep({
   execute: async ({ inputData, mastra }) => {
     const { query } = inputData;
     const logger = mastra.getLogger();
-    logger.info('[workflow:research-multi-web-xai][step:xai-agent-search] start', { query });
+    logger.info('[workflow:research-multi-web-xai][step:xai-web-search] start', { query });
     try {
-      const agent = mastra.getAgent('xai_searchagent');
-      logger.info('[agent:xai_searchagent] generate start');
-      const result = await agent.generate(
-        [
-          {
-            role: 'user',
-            content:
-              `Use xAI live search to find up-to-date information for: "${query}". ` +
-              `Call the xai-web-search tool with the full query. ` +
-              `Then output ONLY JSON in the form { "results": Array<{ "title"?: string, "url"?: string, "content"?: string }> }`,
-          },
-        ],
-        {
-          // Ask the agent to format structured output we can parse
-          experimental_output: z.object({
-            results: z
-              .array(z.object({ title: z.string().optional(), url: z.string().optional(), content: z.string().optional() }))
-              .default([]),
-          }),
-        },
-      );
-
-      const obj: any = (result as any).object ?? {};
-      const xaiResults = (Array.isArray(obj.results) ? obj.results : []) as Array<{
-        title?: string;
-        url?: string;
-        content?: string;
-      }>;
+      const xai = await (xaiWebSearchTool as any).execute({ context: { query }, mastra });
+      const text = (xai as any)?.text || '';
+      const xaiSources = Array.isArray((xai as any)?.sources) ? (xai as any).sources : [];
+      const fromSources = (xaiSources as any[])
+        .map((s: any) => ({
+          title: s?.title || s?.name || s?.pageTitle || s?.publisher || undefined,
+          url: s?.url || s?.link || s?.href || (s?.metadata && s?.metadata.url) || undefined,
+          content: s?.snippet || s?.description || s?.summary || '',
+        }))
+        .filter(r => !!r.url);
+      const urlRegex = /https?:\/\/[^\s)]+/g;
+      const fallbackUrls: string[] = Array.from(new Set((text.match(urlRegex) || []).slice(0, 5)));
+      const fromText = fallbackUrls.map((u) => ({ title: undefined, url: u, content: '' }));
+      const xaiResults = (fromSources.length > 0 ? fromSources : fromText) as Array<{ title?: string; url?: string; content?: string }>;
 
       return { query, xaiResults };
     } catch (error: any) {
-      logger.error('[workflow:research-multi-web-xai][step:xai-agent-search] error', { error: error?.message });
+      logger.error('[workflow:research-multi-web-xai][step:xai-web-search] error', { error: error?.message });
       return { query, xaiResults: [] };
     }
   },
@@ -186,14 +187,14 @@ const mergeEvaluateStep = createStep({
     const toHydrate = merged.filter(r => !r.content || r.content.trim().length < 20).slice(0, 8);
     for (const r of toHydrate) {
       try {
-        const fetched = await (webSearchTool as any).execute({ context: { query: r.url }, mastra });
+        const fetched = await (webSearchTool as any).execute({ context: { query: r.url, skipSummarization: true, numResults: 1 }, mastra });
         const fres = (fetched?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
         // Find best match by exact URL, else same hostname
         const exact = fres.find(fr => fr.url === r.url);
         const byHost = !exact
           ? (() => {
               try {
-                const host = new URL(r.url).host;
+                const host = new URL(r.url || '').host;
                 return fres.find(fr => {
                   try {
                     return new URL(fr.url || '').host === host;
@@ -250,6 +251,7 @@ const multiWebReportStep = createStep({
   inputSchema: z.object({
     query: z.string(),
     researchData: z.any(),
+    summary: z.string(),
   }),
   outputSchema: z.object({
     report: z.string(),
@@ -297,4 +299,3 @@ researchMultiWebXai
   .then(mergeEvaluateStep)
   .then(multiWebReportStep)
   .commit();
-

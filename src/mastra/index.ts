@@ -46,14 +46,8 @@ export const mastra = new Mastra({
     researchMultiWebXai,
     basicAgentWorkflow,
   },
-  tools: {
-    weather: weatherTool,
-    'web-search': webSearchTool,
-    'evaluate-result': evaluateResultTool,
-    'extract-learnings': extractLearningsTool,
-    'openai-web-search': openaiWebSearchTool,
-    'xai-web-search': xaiWebSearchTool,
-  },
+  // Note: Mastra Config no longer accepts a top-level `tools` registry in this version's types.
+  // Tools remain available via direct imports in agents and workflows.
   observability: {
     default: {
       enabled: true,

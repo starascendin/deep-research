@@ -84,34 +84,36 @@ const researchStep = createStep({
         {
           maxSteps: 40,
           // Lenient schema to reduce parse failures and avoid undefined object
-          experimental_output: z.object({
-            queries: z.array(z.string()).default([]),
-            searchResults: z
-              .array(
-                z
-                  .object({
-                    title: z.string().optional(),
-                    url: z.string().optional(),
-                    content: z.string().optional(),
-                    relevance: z.union([z.string(), z.boolean()]).optional(),
-                    isRelevant: z.boolean().optional(),
-                    reason: z.string().optional(),
-                  })
-                  .catchall(z.any()),
-              )
-              .default([]),
-            learnings: z
-              .array(
-                z.object({
-                  learning: z.string().optional(),
-                  followUpQuestions: z.array(z.string()).default([]).optional(),
-                  source: z.string().optional(),
-                }),
-              )
-              .default([]),
-            completedQueries: z.array(z.string()).default([]),
-            phase: z.string().optional(),
-          }),
+          structuredOutput: {
+            schema: z.object({
+              queries: z.array(z.string()).default([]),
+              searchResults: z
+                .array(
+                  z
+                    .object({
+                      title: z.string().optional(),
+                      url: z.string().optional(),
+                      content: z.string().optional(),
+                      relevance: z.union([z.string(), z.boolean()]).optional(),
+                      isRelevant: z.boolean().optional(),
+                      reason: z.string().optional(),
+                    })
+                    .catchall(z.any()),
+                )
+                .default([]),
+              learnings: z
+                .array(
+                  z.object({
+                    learning: z.string().optional(),
+                    followUpQuestions: z.array(z.string()).default([]).optional(),
+                    source: z.string().optional(),
+                  }),
+                )
+                .default([]),
+              completedQueries: z.array(z.string()).default([]),
+              phase: z.string().optional(),
+            }),
+          },
         },
       );
 

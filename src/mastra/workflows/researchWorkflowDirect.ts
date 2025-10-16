@@ -47,34 +47,36 @@ const researchDirectStep = createStep({
         ],
         {
           maxSteps: 40,
-          experimental_output: z.object({
-            queries: z.array(z.string()).default([]),
-            searchResults: z
-              .array(
-                z
-                  .object({
-                    title: z.string().optional(),
-                    url: z.string().optional(),
-                    content: z.string().optional(),
-                    relevance: z.union([z.string(), z.boolean()]).optional(),
-                    isRelevant: z.boolean().optional(),
-                    reason: z.string().optional(),
-                  })
-                  .catchall(z.any()),
-              )
-              .default([]),
-            learnings: z
-              .array(
-                z.object({
-                  learning: z.string().optional(),
-                  followUpQuestions: z.array(z.string()).default([]).optional(),
-                  source: z.string().optional(),
-                }),
-              )
-              .default([]),
-            completedQueries: z.array(z.string()).default([]),
-            phase: z.string().optional(),
-          }),
+          structuredOutput: {
+            schema: z.object({
+              queries: z.array(z.string()).default([]),
+              searchResults: z
+                .array(
+                  z
+                    .object({
+                      title: z.string().optional(),
+                      url: z.string().optional(),
+                      content: z.string().optional(),
+                      relevance: z.union([z.string(), z.boolean()]).optional(),
+                      isRelevant: z.boolean().optional(),
+                      reason: z.string().optional(),
+                    })
+                    .catchall(z.any()),
+                )
+                .default([]),
+              learnings: z
+                .array(
+                  z.object({
+                    learning: z.string().optional(),
+                    followUpQuestions: z.array(z.string()).default([]).optional(),
+                    source: z.string().optional(),
+                  }),
+                )
+                .default([]),
+              completedQueries: z.array(z.string()).default([]),
+              phase: z.string().optional(),
+            }),
+          },
         },
       );
 
@@ -104,7 +106,14 @@ const researchDirectStep = createStep({
           // Also try OpenAI web search preview and merge results
           logger.info('[tool:openai-web-search] execute from direct fallback', { query });
           const openaiSearch = await (openaiWebSearchTool as any).execute({ context: { query } });
-          const oaiResults = (openaiSearch?.results ?? []) as Array<{ title?: string; url?: string; content?: string }>;
+          const oaiSources = Array.isArray((openaiSearch as any)?.sources) ? (openaiSearch as any).sources : [];
+          const oaiResults = (oaiSources as any[])
+            .map((s: any) => ({
+              title: s?.title || s?.name || s?.pageTitle || s?.publisher || undefined,
+              url: s?.url || s?.link || s?.href || (s?.metadata && s?.metadata.url) || undefined,
+              content: s?.snippet || s?.description || s?.summary || '',
+            }))
+            .filter(r => !!r.url) as Array<{ title?: string; url?: string; content?: string }>;
 
           const dedup = new Map<string, { title?: string; url?: string; content?: string }>();
           for (const r of [...exaResults, ...oaiResults]) {
@@ -168,6 +177,7 @@ const generateReportDirectStep = createStep({
   inputSchema: z.object({
     query: z.string(),
     researchData: z.any(),
+    summary: z.string(),
   }),
   outputSchema: z.object({
     report: z.string(),
