@@ -12,7 +12,7 @@ export const webSearchTool = createTool({
   inputSchema: z.object({
     query: z.string().describe('The search query to run (can be a URL for hydration)'),
     // When true, skip summarization and return raw/truncated content. Useful for hydration.
-    skipSummarization: z.boolean().optional().default(false),
+    skipSummarization: z.boolean().optional().default(true),
     // Optional override for number of results to fetch (defaults to 3, or 1 for hydration)
     numResults: z.number().int().positive().optional(),
   }),
