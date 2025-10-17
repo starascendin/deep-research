@@ -10,10 +10,13 @@ import { xaiSearchAgent } from './agents/xaiSearchAgent';
 import { webSummarizationAgent } from './agents/webSummarizationAgent';
 import { generateReportWorkflow } from './workflows/generateReportWorkflow';
 import { researchWorkflowDirect } from './workflows/researchWorkflowDirect';
+import { basicAgent } from './agents/basicAgent';
+import { exaMcpWebSearchAgent } from './agents/exaMcpWebSearchAgent';
+import { websearchNetworkAgent } from './agents/websearchNetworkAgent';
+import { basicAgentWorkflow } from './workflows/basicAgentWorkflow';
 import { researchMultiWeb } from './workflows/researchMultiWeb';
 import { researchMultiWebXai } from './workflows/researchMultiWebXai';
-import { basicAgent } from './agents/basicAgent';
-import { basicAgentWorkflow } from './workflows/basicAgentWorkflow';
+import { testWorkflow01 } from './workflows/testWorkflow01';
 import { weatherTool } from './tools/weatherTool';
 import { webSearchTool } from './tools/webSearchTool';
 import { evaluateResultTool } from './tools/evaluateResultTool';
@@ -37,6 +40,8 @@ export const mastra = new Mastra({
     evaluationAgent,
     learningExtractionAgent,
     webSummarizationAgent,
+    exaMcpWebSearchAgent,
+    websearchNetworkAgent,
   },
   workflows: {
     generateReportWorkflow,
@@ -45,6 +50,7 @@ export const mastra = new Mastra({
     researchMultiWeb,
     researchMultiWebXai,
     basicAgentWorkflow,
+    testWorkflow01,
   },
   // Note: Mastra Config no longer accepts a top-level `tools` registry in this version's types.
   // Tools remain available via direct imports in agents and workflows.
