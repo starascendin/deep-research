@@ -177,6 +177,80 @@ export const mastra = new Mastra({
           await next();
         },
       },
+      // Lightweight tool endpoints for Playground compatibility
+      // - Lists available tools
+      // - Returns tool metadata
+      // - Executes tools with provided JSON body { context: {...} }
+      {
+        path: '/api/tools/*',
+        handler: async (c, next) => {
+          try {
+            const url = new URL(c.req.url);
+            const path = (c.req as any).path ?? url.pathname;
+
+            // Allow preflight
+            if (c.req.method === 'OPTIONS') {
+              return new Response(null, { status: 204 });
+            }
+
+            const registry: Record<string, any> = {
+              'web-search': webSearchTool,
+              'openai-web-search': openaiWebSearchTool,
+              'xai-web-search': xaiWebSearchTool,
+              'evaluate-result': evaluateResultTool,
+              'extract-learnings': extractLearningsTool,
+              'weather': weatherTool,
+            };
+
+            const segments = path.split('/').filter(Boolean);
+            // Expect: ['api','tools'] or ['api','tools',':id'] or ['api','tools',':id','execute']
+            const id = segments[2];
+            const action = segments[3];
+
+            const toJSON = (data: any) => new Response(JSON.stringify(data, null, 2), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!id) {
+              // List tools
+              const list = Object.keys(registry).map(k => ({ id: k }));
+              return toJSON({ tools: list });
+            }
+
+            const tool = registry[id];
+            if (!tool) {
+              return new Response(JSON.stringify({ error: `Unknown tool: ${id}` }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+            }
+
+            if (c.req.method === 'GET') {
+              // Return minimal metadata; Zod schemas aren’t serializable without a converter
+              return toJSON({ id, description: (tool as any)?.description ?? undefined });
+            }
+
+            if (c.req.method === 'POST') {
+              // Execute tool
+              let body: any = {};
+              try {
+                body = await c.req.json();
+              } catch {}
+              const context = body?.context ?? body ?? {};
+              try {
+                const result = await (tool as any).execute({ context, mastra });
+                return toJSON(result ?? {});
+              } catch (err: any) {
+                const message = err?.message || 'Tool execution failed';
+                return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+              }
+            }
+
+            // Not handled; continue chain
+            await next();
+          } catch (e) {
+            return new Response(JSON.stringify({ error: 'Unhandled tools route error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+          }
+        },
+      },
     ],
   },
 });
