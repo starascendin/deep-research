@@ -228,7 +228,7 @@ export const mastra = new Mastra({
               return toJSON({ id, description: (tool as any)?.description ?? undefined });
             }
 
-            if (c.req.method === 'POST') {
+            if (c.req.method === 'POST' && (!action || action === 'execute')) {
               // Execute tool
               let body: any = {};
               try {
@@ -236,7 +236,7 @@ export const mastra = new Mastra({
               } catch {}
               const context = body?.context ?? body ?? {};
               try {
-                const result = await (tool as any).execute({ context, mastra });
+                const result = await (tool as any).execute({ context, mastra: undefined });
                 return toJSON(result ?? {});
               } catch (err: any) {
                 const message = err?.message || 'Tool execution failed';
