@@ -145,7 +145,6 @@ const mergeEvaluateStep = createStep({
   outputSchema: z.object({
     query: z.string(),
     researchData: z.any(),
-    summary: z.string(),
   }),
   execute: async ({ inputData, mastra }) => {
     const exaPart = inputData['exa-web-search'];
@@ -236,12 +235,7 @@ const mergeEvaluateStep = createStep({
       phase: 'initial',
     };
 
-    const summary = `Multi-source research (Exa + OpenAI + xAI) completed on \"${query}\"\n\n${JSON.stringify(
-      researchData,
-      null,
-      2,
-    )}\n`;
-    return { query, researchData, summary };
+    return { query, researchData };
   },
 });
 
@@ -251,11 +245,9 @@ const multiWebReportStep = createStep({
   inputSchema: z.object({
     query: z.string(),
     researchData: z.any(),
-    summary: z.string(),
   }),
   outputSchema: z.object({
     report: z.string(),
-    summary: z.string(),
     researchData: z.any(),
     approved: z.boolean().default(true),
   }),
@@ -272,10 +264,10 @@ const multiWebReportStep = createStep({
           content: `Original user query: ${query}\n\nYou are given merged research results (JSON) collected from Exa, OpenAI web search, and xAI live search. Write a comprehensive, focused report that directly answers the user's query. Follow these rules:\n- Prioritize items in researchData.searchResults where isRelevant is true; ignore others.\n- Synthesize findings into a clear, structured narrative.\n- Include a concise Sources section citing titles and URLs used.\n- Keep the report tightly aligned to the query; avoid drift.\n\nMerged research data (JSON):\n${JSON.stringify(researchData)}`,
         },
       ]);
-      return { report: response.text, summary: response.text, researchData, approved: true };
+      return { report: response.text, researchData, approved: true };
     } catch (error: any) {
       const msg = `Failed to generate report: ${error?.message || 'unknown error'}`;
-      return { report: msg, summary: msg, researchData, approved: true };
+      return { report: msg, researchData, approved: true };
     }
   },
 });
@@ -289,7 +281,6 @@ export const researchMultiWebXai = createWorkflow({
     researchData: z.any(),
     approved: z.boolean().default(true),
     report: z.string().optional(),
-    summary: z.string().optional(),
   }),
   steps: [exaSearchStep, openaiSearchStep, xaiAgentSearchStep, mergeEvaluateStep, multiWebReportStep],
 });

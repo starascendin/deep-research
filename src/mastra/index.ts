@@ -5,6 +5,7 @@ import { researchWorkflow } from './workflows/researchWorkflow';
 import { learningExtractionAgent } from './agents/learningExtractionAgent';
 import { evaluationAgent } from './agents/evaluationAgent';
 import { reportAgent } from './agents/reportAgent';
+import { WebSearchSummarizerAgent } from './agents/WebSearchSummarizerAgent';
 import { researchAgent } from './agents/researchAgent';
 import { xaiSearchAgent } from './agents/xaiSearchAgent';
 import { webSummarizationAgent } from './agents/webSummarizationAgent';
@@ -16,6 +17,7 @@ import { websearchNetworkAgent } from './agents/websearchNetworkAgent';
 import { basicAgentWorkflow } from './workflows/basicAgentWorkflow';
 import { researchMultiWeb } from './workflows/researchMultiWeb';
 import { researchMultiWebXai } from './workflows/researchMultiWebXai';
+import { parallelWebSummarizer } from './workflows/parallelWebSummarizer';
 import { testWorkflow01 } from './workflows/testWorkflow01';
 import { weatherTool } from './tools/weatherTool';
 import { webSearchTool } from './tools/webSearchTool';
@@ -42,6 +44,7 @@ export const mastra = new Mastra({
     webSummarizationAgent,
     exaMcpWebSearchAgent,
     websearchNetworkAgent,
+    WebSearchSummarizerAgent,
   },
   workflows: {
     generateReportWorkflow,
@@ -49,6 +52,7 @@ export const mastra = new Mastra({
     researchWorkflowDirect,
     researchMultiWeb,
     researchMultiWebXai,
+    parallelWebSummarizer,
     basicAgentWorkflow,
     testWorkflow01,
   },
