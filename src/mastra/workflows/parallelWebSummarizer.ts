@@ -147,32 +147,32 @@ const summarizeReportStep = createStep({
     ).default([]),
   }),
   execute: async ({ inputData, mastra }) => {
-    const exaPart = inputData['exa-web-search-new'];
-    const oaiPart = inputData['openai-web-search-new'];
-    const xaiPart = inputData['xai-web-search-new'];
-    const query = exaPart?.query || oaiPart?.query || xaiPart?.query || '';
-    const logger = mastra.getLogger();
-    logger.info('[workflow:parallel-web-summarizer][step:summarize-into-report-new] start', { query });
-
-    // Merge + deduplicate by URL; prefer entries with content
-    const map = new Map<string, { title?: string; url?: string; content?: string }>();
-    const take = (r?: { title?: string; url?: string; content?: string }) => {
-      if (!r?.url) return;
-      const existing = map.get(r.url);
-      if (!existing) {
-        map.set(r.url, r);
-      } else {
-        const has = (existing.content || '').trim().length;
-        const newLen = (r.content || '').trim().length;
-        if (has === 0 && newLen > 0) map.set(r.url, r);
-      }
-    };
-    for (const r of (exaPart?.exaResults ?? [])) take(r);
-    for (const r of (oaiPart?.oaiResults ?? [])) take(r);
-    for (const r of (xaiPart?.xaiResults ?? [])) take(r);
-    const merged = Array.from(map.values()).slice(0, 20); // keep top 20 to limit tokens
-
     try {
+      const exaPart = inputData['exa-web-search-new'];
+      const oaiPart = inputData['openai-web-search-new'];
+      const xaiPart = inputData['xai-web-search-new'];
+      const query = exaPart?.query || oaiPart?.query || xaiPart?.query || '';
+      const logger = mastra.getLogger();
+      logger.info('[workflow:parallel-web-summarizer][step:summarize-into-report-new] start', { query });
+
+      // Merge + deduplicate by URL; prefer entries with content
+      const map = new Map<string, { title?: string; url?: string; content?: string }>();
+      const take = (r?: { title?: string; url?: string; content?: string }) => {
+        if (!r?.url) return;
+        const existing = map.get(r.url);
+        if (!existing) {
+          map.set(r.url, r);
+        } else {
+          const has = (existing.content || '').trim().length;
+          const newLen = (r.content || '').trim().length;
+          if (has === 0 && newLen > 0) map.set(r.url, r);
+        }
+      };
+      for (const r of (exaPart?.exaResults ?? [])) take(r);
+      for (const r of (oaiPart?.oaiResults ?? [])) take(r);
+      for (const r of (xaiPart?.xaiResults ?? [])) take(r);
+      const merged = Array.from(map.values()).slice(0, 20); // keep top 20 to limit tokens
+
       const numberedSources = merged
         .map((r, i) => ({ index: i + 1, title: r.title, url: r.url || '', content: r.content || '' }))
         .filter(s => !!s.url);
@@ -203,6 +203,8 @@ const summarizeReportStep = createStep({
 
       return { content: reportText, citations, sources: used };
     } catch (error: any) {
+      const logger = mastra.getLogger();
+      logger.error('[parallel-web-summarizer] summarize step failed', { error: error?.message });
       const msg = `Failed to generate summary report: ${error?.message || 'unknown error'}`;
       return { content: msg, citations: [], sources: [] };
     }
