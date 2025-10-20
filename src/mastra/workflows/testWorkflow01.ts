@@ -60,10 +60,11 @@ const mergeParallelStep = createStep({
     }),
   }),
   outputSchema: z.object({
-    original: z.string(),
-    uppercase: z.string(),
-    reversed: z.string(),
-    combinedMessage: z.string(),
+    content: z.string(),
+    citations: z.array(z.number()).default([]),
+    sources: z
+      .array(z.object({ index: z.number(), title: z.string().optional(), url: z.string() }))
+      .default([]),
   }),
   execute: async ({ inputData, mastra }) => {
     const logger = mastra.getLogger();
@@ -76,10 +77,9 @@ const mergeParallelStep = createStep({
 
     logger.info('[workflow:test-workflow-01][step:merge-parallel-results] completed');
     return {
-      original,
-      uppercase: uppercasePart.uppercase,
-      reversed: reversePart.reversed,
-      combinedMessage,
+      content: combinedMessage,
+      citations: [],
+      sources: [],
     };
   },
 });
@@ -90,13 +90,13 @@ export const testWorkflow01 = createWorkflow({
     text: z.string().min(1, 'text is required'),
   }),
   outputSchema: z.object({
-    original: z.string(),
-    uppercase: z.string(),
-    reversed: z.string(),
-    combinedMessage: z.string(),
+    content: z.string(),
+    citations: z.array(z.number()).default([]),
+    sources: z
+      .array(z.object({ index: z.number(), title: z.string().optional(), url: z.string() }))
+      .default([]),
   }),
   steps: [uppercaseBranchStep, reverseBranchStep, mergeParallelStep],
 });
 
 testWorkflow01.parallel([uppercaseBranchStep, reverseBranchStep]).then(mergeParallelStep).commit();
-
